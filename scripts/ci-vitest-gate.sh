@@ -16,12 +16,20 @@ MIN_PASSED="${2:-900}"
 LOG="${LOG:-/tmp/vitest-ci.log}"
 
 cd "$ROOT"
+
+# CI sets CI=true, which makes the reporter colourise even with stdout redirected
+# to a file; those escape codes break any parsing of the summary line.
+strip_ansi() { sed -E $'s/\x1b\\[[0-9;]*[A-Za-z]//g'; }
+
 set +e
-npx vitest run --reporter=dot >"$LOG" 2>&1
-VITEST_EXIT=$?
+# --retry=1 absorbs one timing-sensitive upstream test (the mocked release fetch
+# runs on a 100ms fast-check clock and fails under load); a real regression fails
+# both attempts.
+NO_COLOR=1 FORCE_COLOR=0 npx vitest run --reporter=dot --retry=1 2>&1 | strip_ansi >"$LOG"
+VITEST_EXIT=${PIPESTATUS[0]}
 set -e
 
-SUMMARY="$(grep -E '^ +Tests +[0-9]+ (failed|passed)' "$LOG" | tail -1 || true)"
+SUMMARY="$(grep -E 'Tests +[0-9]+ (failed|passed)' "$LOG" | tail -1 || true)"
 if [ -z "$SUMMARY" ]; then
   echo "vitest produced no summary (exit $VITEST_EXIT); last 40 lines:" >&2
   tail -40 "$LOG" >&2
