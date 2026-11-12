@@ -19,6 +19,7 @@ vi.mock('../electron/clipboard/osClipboard', () => {
     readText: vi.fn(() => mockText),
     readTextAsync: vi.fn(async () => mockText),
     readUriListPaths: vi.fn(async () => null),
+    writeFileUriList: vi.fn(async () => {}),
     readHTML: vi.fn(() => mockHtml),
     readImage: vi.fn(() => mockImage),
     readBuffer: vi.fn(() => Buffer.alloc(0)),

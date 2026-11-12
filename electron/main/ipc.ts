@@ -28,6 +28,7 @@ import { quitAndInstallUpdate, checkForUpdatesManual, startUpdateDownload, syncA
 import { createId } from '../store/ids'
 import { isStoreBuild } from './config'
 import { applyLaunchAtLogin, refreshLaunchAtLoginFromOs } from './loginItems'
+import { sendPasteKeystroke } from './pasteInput'
 import { toUnpackagedFilePath, toUnpackagedFilePaths } from '../store/paths'
 import { isPasteableEmoji } from '../../shared/emoji'
 import { emojiAssetDir, readEmojiBatch, resolveIconAsset } from './imageProtocol'
@@ -63,7 +64,7 @@ function toast(message: string, tone: 'info' | 'error' = 'info', params?: Record
   sendToMainWindow('ui:toast', { id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, message, tone, params })
 }
 
-/** Simulate pressing Ctrl+V via PowerShell after returning focus to the previous active window. */
+/** Simulate pressing Ctrl+V (Windows: SendKeys via PowerShell; elsewhere: an injector). */
 function simulatePaste(): void {
   if (process.platform === 'win32') {
     // Run via the persistent powershell host for near-zero latency (no process spawn overhead)
@@ -80,6 +81,13 @@ function simulatePaste(): void {
           if (fallbackErr) console.error('[Main] simulatePaste fallback error:', fallbackErr)
         })
       })
+    return
+  }
+  // The clipboard is already written at this point; when no injector is
+  // installed the item is still copied, so tell the user to paste by hand
+  // rather than closing the shelf silently.
+  if (!sendPasteKeystroke((err) => console.error('[Main] paste keystroke failed:', err))) {
+    toast('toast.pasteFallback', 'info')
   }
 }
 
@@ -117,7 +125,18 @@ async function writeFileListToClipboard(rawPaths: string[]): Promise<boolean> {
       console.error('[ipc] writeFileListToClipboard PowerShell failed, using text fallback:', err)
     }
   }
-  // Non-Windows / PowerShell failure fallback: plain text paths (best-effort)
+  // Non-Windows: publish the list as a uri list so shell-aware targets (a file
+  // manager, Slack, a browser upload field) paste the actual files. Windows
+  // needs CF_HDROP written by PowerShell above for the same effect.
+  if (process.platform !== 'win32') {
+    try {
+      await clipboard.writeFileUriList(validPaths)
+      return true
+    } catch (err) {
+      console.error('[ipc] writeFileUriList failed, using text fallback:', err)
+    }
+  }
+  // Last resort (Windows PowerShell failure too): plain text paths.
   clipboard.clear()
   await clipboard.writeText(validPaths.join('\r\n'))
   return true

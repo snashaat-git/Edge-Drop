@@ -59,7 +59,8 @@ vi.mock('../electron/clipboard/osClipboard', () => ({
     format === 'FileNameW' && win.paths.length ? Buffer.from(`${win.paths[0]}\0`, 'utf16le') : Buffer.alloc(0),
   readText: () => '',
   readHTML: () => '',
-  readImage: () => ({ isEmpty: () => true, getSize: () => ({ width: 0, height: 0 }) })
+  readImage: () => ({ isEmpty: () => true, getSize: () => ({ width: 0, height: 0 }) }),
+  writeFileUriList: async () => {}
 }))
 
 vi.mock('electron', () => ({

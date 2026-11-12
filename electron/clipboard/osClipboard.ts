@@ -18,6 +18,7 @@
  */
 import { clipboard, ClipboardItem, nativeImage, type NativeImage } from 'electron'
 import { existsSync } from 'node:fs'
+import { pathToFileURL } from 'node:url'
 import koffi from 'koffi'
 
 const CF_BITMAP = 2
@@ -242,4 +243,23 @@ export async function write(data: { text: string; html?: string }): Promise<void
 /** An image, as the old `writeImage` put it on the clipboard (a bitmap and a PNG). */
 export async function writeImage(image: NativeImage): Promise<void> {
   await clipboard.write([new ClipboardItem({ 'image/png': new Blob([image.toPNG()], { type: 'image/png' }) })])
+}
+
+/**
+ * File references, off Windows: the same list as a text/uri-list plus the plain
+ * paths, written in one atomic clipboard.write().
+ *
+ * Windows needs CF_HDROP + FileNameW + Shell IDList Array written together for
+ * Explorer-aware paste, which is why ipc.ts uses PowerShell there. On Linux and
+ * macOS text/uri-list is that convention: any X11/Wayland consumer — Nautilus,
+ * Slack, GIMP, a browser upload field — resolves it to real files.
+ */
+export async function writeFileUriList(paths: string[]): Promise<void> {
+  const uris = paths.map((p) => pathToFileURL(p).href).join('\r\n')
+  await clipboard.write([
+    new ClipboardItem({
+      'text/uri-list': new Blob([uris], { type: 'text/uri-list' }),
+      'text/plain': new Blob([paths.join('\n')], { type: 'text/plain' })
+    })
+  ])
 }

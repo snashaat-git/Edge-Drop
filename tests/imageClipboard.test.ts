@@ -10,7 +10,8 @@ vi.mock('../electron/clipboard/osClipboard', () => {
     writeImage: vi.fn(async (img) => {
       mockClipboardImage = img
     }),
-    readImage: vi.fn(async () => mockClipboardImage)
+    readImage: vi.fn(async () => mockClipboardImage),
+    writeFileUriList: vi.fn(async () => {})
   }
 })
 
