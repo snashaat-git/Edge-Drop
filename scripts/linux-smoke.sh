@@ -34,7 +34,14 @@ set -u
 
 CASE="${1:-text}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-STORE="${HOME}/.config/edge-drop/items.json"
+# The app writes its store under XDG_CONFIG_HOME. Point it at a throwaway dir so a
+# smoke run never touches the shelf a developer actually uses — an earlier version
+# wiped ~/.config/edge-drop/items.json on every case.
+SMOKE_CONFIG="$(mktemp -d /tmp/edge-drop-smoke-config.XXXXXX)"
+export XDG_CONFIG_HOME="$SMOKE_CONFIG"
+STORE="$SMOKE_CONFIG/edge-drop/items.json"
+FIXTURE=""
+trap 'rm -rf "$SMOKE_CONFIG" ${FIXTURE:+"$FIXTURE"}' EXIT
 LOG=/tmp/edge-drop-smoke.log
 PASTE_LOG=/tmp/edge-drop-paste.log
 URI_OUT=/tmp/edge-drop-uri-out.txt
