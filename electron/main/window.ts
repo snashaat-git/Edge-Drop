@@ -25,6 +25,7 @@ import { isSafeExternalUrl } from './externalUrl'
 import { WorkAreaCache } from './workAreaCache'
 import { probeSeamAware, isNearProximity, type SeamTickState } from './stickProbe'
 import { loadSettings, saveSettings } from '../store/settings'
+import { normalizeUiZoom, UI_ZOOM_MIN } from '../../shared/types'
 import { isFullscreenAppActive, registerFullscreenActiveListener } from './fullscreen'
 import { noteUiMotion } from './thumbnailCache'
 import { isExternalDragActive } from './externalDrag'
@@ -178,6 +179,31 @@ export function sendToMainWindow(channel: string, ...args: unknown[]): boolean {
 /** True when the window currently accepts mouse clicks (blade is "open"). */
 export function isInteractive(): boolean {
   return interactive
+}
+
+/** The stored UI zoom, already clamped onto its grid. */
+export function currentUiZoom(): number {
+  return normalizeUiZoom(loadSettings().uiZoom)
+}
+
+/**
+ * Paint the shelf at the user's UI zoom.
+ *
+ * Chromium's zoom factor shrinks the CSS viewport (one CSS pixel becomes `zoom`
+ * device pixels), so the window is widened by the same factor in
+ * getStickGeometry and the panel keeps its CSS geometry: text, cards and icons
+ * are simply drawn larger. The cursor poll divides screen pixels by the same
+ * factor before sending them to the renderer, so its hover and close maths keeps
+ * comparing CSS pixels with CSS pixels.
+ */
+export function applyUiZoom(): void {
+  if (!mainWindow || mainWindow.isDestroyed()) return
+  const contents = mainWindow.webContents
+  if (contents.isDestroyed()) return
+  const zoom = currentUiZoom()
+  if (Math.abs(contents.getZoomFactor() - zoom) < 0.001) return
+  contents.setZoomFactor(zoom)
+  console.log(`[Window] UI zoom ${zoom}x`)
 }
 
 /**
@@ -630,15 +656,19 @@ function _pollTick(): void {
     _lastSentX = clientX
     _lastSentY = clientY
     _lastSentDrag = drag
+    // Positions cross to the renderer in CSS pixels, which is what its own
+    // measurements (window.innerWidth, element rects) are in. With a UI zoom the
+    // device pixel is `zoom` CSS pixels, so divide exactly here and nowhere else.
+    const zoom = normalizeUiZoom(settings.uiZoom)
     sendToMainWindow('window:cursor-edge', {
-      x: clientX,
-      y: clientY,
+      x: clientX / zoom,
+      y: clientY / zoom,
       inEdge,
       inZone: true,
       drag,
       stickPosition: settings.stickPosition,
-      displayWidth: wa.width,
-      displayHeight: wa.height
+      displayWidth: wa.width / zoom,
+      displayHeight: wa.height / zoom
     })
   }
 }
@@ -672,7 +702,10 @@ function getStickGeometry(): { x: number; y: number; width: number; height: numb
     isPrimary: d.id === primaryDisplay.id
   }))
 
-  const currentWindowWidth = previewActive ? 820 : PANEL_WIDTH
+  // The window is the panel's CSS width times the zoom factor: the renderer lays
+  // out in CSS pixels, and Chromium divides the viewport by the zoom factor, so
+  // widening by the same amount keeps the panel's own geometry unchanged.
+  const currentWindowWidth = Math.round((previewActive ? 820 : PANEL_WIDTH) * normalizeUiZoom(settings.uiZoom))
 
   const result = computeStickBounds({
     position: settings.stickPosition,
@@ -786,7 +819,9 @@ export function createWindow(): BrowserWindow {
     frame: false,
     fullscreenable: false,
     maximizable: false,
-    minWidth: 320,
+    // The narrowest the window ever gets is a shelf at the minimum UI zoom; a
+    // fixed 320 would clamp the 80% case and leave the panel inset from its edge.
+    minWidth: Math.round(PANEL_WIDTH * UI_ZOOM_MIN),
     minHeight: 240,
     movable: false,
     resizable: false,
@@ -930,8 +965,12 @@ export function createWindow(): BrowserWindow {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
   }
 
+  // Zoom survives reloads only if it is re-applied to the new document.
+  mainWindow.webContents.on('did-finish-load', () => applyUiZoom())
+
   mainWindow.once('ready-to-show', () => {
     if (!mainWindow) return
+    applyUiZoom()
     mainWindow.showInactive()
     // 'screen-saver' level stays above fullscreen browser windows and games.
     mainWindow.setAlwaysOnTop(true, 'screen-saver')

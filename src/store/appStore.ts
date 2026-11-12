@@ -96,6 +96,13 @@ interface AppState {
   setTypeFilter: (filter: import('../../shared/types').TypeFilter) => void
   /** Whether the panel blade is expanded. */
   open: boolean
+  /**
+   * The user pinned the shelf open: the cursor leaving no longer retracts it.
+   * Session-only by design — a shelf that stays on screen across restarts is a
+   * surprise, not a preference.
+   */
+  pinned: boolean
+  setPinned: (pinned: boolean) => void
   /** Settings sheet visibility. */
   settingsOpen: boolean
   /** Emoji library view (replaces the clipboard list). */
@@ -259,6 +266,8 @@ export const useStore = create<AppState>((set, get) => ({
     if (get().previewItemId) get().setPreviewItemId(null)
   },
   open: false,
+  pinned: false,
+  setPinned: (pinned) => set({ pinned }),
   settingsOpen: false,
   settingsTab: 'behaviour',
   setSettingsTab: (settingsTab) => set({ settingsTab }),
@@ -533,7 +542,15 @@ export const useStore = create<AppState>((set, get) => ({
         cardEditorCommit?.()
       } catch { /* ignore */ }
     }
-    set({ open })
+    // Closing always releases the pin: "pinned" describes an open shelf, so a
+    // close from the hotkey, the tray or the fullscreen guard leaves nothing
+    // behind that would reopen it on the next hover.
+    set(open ? { open } : { open, pinned: false })
+    // The one line that says the shelf is genuinely up. The smoke harness waits
+    // on it instead of guessing a sleep: on a loaded machine the first paint can
+    // land several seconds after the pointer reaches the edge, and a fixed wait
+    // reads that as "the hover never opened the shelf".
+    console.log(`[Panel] open: ${open}`)
     if (!open) {
       // Release any focused control inside the blade. Without this, a button
       // left focused from a click keeps matching the card's :focus-within

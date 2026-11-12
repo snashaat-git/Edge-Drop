@@ -23,6 +23,12 @@
 #   wayland  launched with Wayland session vars: must select the XWayland backend
 #   hotkey   Alt+C sent through XTEST with the pointer far from the edge must open
 #          the panel on its own
+#   pin      clicking the pin button then leaving must keep the shelf up; clicking
+#          it again must let the same leave retract it (two frames, compared)
+#   zoom     uiZoom 1.25 in the store: the window must be ~480-520px wide and the
+#          app must log that it applied the factor
+#   zoom100  the same measurement at 100%, so the 125% numbers are a comparison
+#          and not a guess
 #
 # Exit code: 0 when the expected effect was observed, 1 when it was not.
 # Artifacts: /tmp/edge-drop-<case>.png, /tmp/edge-drop-smoke.log,
@@ -49,6 +55,15 @@ FOCUS_BEFORE=/tmp/edge-drop-focus-before.txt
 FOCUS_AFTER=/tmp/edge-drop-focus-after.txt
 SHOT_XWD="/tmp/edge-drop-${CASE}.xwd"
 SHOT_PNG="/tmp/edge-drop-${CASE}.png"
+PIN_BASE_XWD="/tmp/edge-drop-pin-base.xwd"
+PIN_BASE_PNG="/tmp/edge-drop-pin-base.png"
+PIN_BEFORE_XWD="/tmp/edge-drop-pin-before.xwd"
+PIN_BEFORE_PNG="/tmp/edge-drop-pin-before.png"
+PIN_OPEN_XWD="/tmp/edge-drop-pin-open.xwd"
+PIN_CLOSED_XWD="/tmp/edge-drop-pin-closed.xwd"
+PIN_OPEN_PNG="/tmp/edge-drop-pin-open.png"
+PIN_CLOSED_PNG="/tmp/edge-drop-pin-closed.png"
+WININFO="/tmp/edge-drop-window.txt"
 CLICK_X="${CLICK_X:-130}"
 CLICK_Y="${CLICK_Y:-400}"
 
@@ -64,6 +79,18 @@ fi
 LAUNCH_ENV=""
 if [ "$CASE" = "wayland" ]; then
   LAUNCH_ENV="XDG_SESSION_TYPE=wayland WAYLAND_DISPLAY=wayland-0"
+fi
+
+# The zoom cases need the factor in the store BEFORE the window exists: main
+# reads it when it computes the geometry, so seeding it afterwards would only
+# prove that a live update works, not that the shelf launches at that size.
+if [ "$CASE" = "zoom" ] || [ "$CASE" = "zoom100" ]; then
+  case "$CASE" in
+    zoom)    ZOOM_VALUE=1.25 ;;
+    zoom100) ZOOM_VALUE=1.0 ;;
+  esac
+  mkdir -p "$SMOKE_CONFIG/edge-drop"
+  printf '{"uiZoom": %s}\n' "$ZOOM_VALUE" > "$SMOKE_CONFIG/edge-drop/settings.json"
 fi
 
 # --- probe fixtures -------------------------------------------------------
@@ -111,6 +138,13 @@ $LAUNCH_ENV $LAUNCH > "$LOG" 2>&1 &
 APP=\$!
 # Let the app settle: first paint, store load, watcher seed.
 sleep 16
+if [ "$CASE" = "zoom" ] || [ "$CASE" = "zoom100" ]; then
+  # The window is sized at creation from PANEL_WIDTH × zoom; the panel itself is
+  # closed here, so this is the geometry main chose, not an animation frame.
+  # The onboarding tour is a second window with the same title, so take the one
+  # anchored at the top-left corner: that is the edge panel.
+  xwininfo -root -tree | grep '"Edge-Drop"' | grep -m1 -- '+0+0' > "$WININFO"
+fi
 case "$CASE" in
   text|paste|nopaste|focus) printf 'linux clipboard probe 12345' | xclip -selection clipboard ;;
   image)      xclip -selection clipboard -t image/png -i /tmp/probe.png ;;
@@ -138,8 +172,96 @@ if [ "$CASE" = "hotkey" ]; then
   python3 "$ROOT/scripts/x11-input.py" key alt+c
   sleep 2
 else
+  # Move well away first, then onto the edge. A warp to the position the pointer
+  # already holds generates no motion event, and the app arms its open-dwell on the
+  # crossing.
+  python3 "$ROOT/scripts/x11-input.py" warp 900 500
+  sleep 0.5
   python3 "$ROOT/scripts/x11-input.py" warp 1 500
-  sleep 4
+  # Wait for the shelf rather than sleeping through a guess: the first paint can
+  # lag the pointer by seconds on a loaded machine, and a fixed wait reads that as
+  # "the hover never opened the shelf".
+  waited=0
+  while [ "\$waited" -lt 40 ] && ! grep -q '\[Panel\] open: true' "$LOG" 2>/dev/null; do
+    sleep 0.5
+    waited=\$((waited + 1))
+  done
+  if ! grep -q '\[Panel\] open: true' "$LOG" 2>/dev/null; then
+    echo "[Panel] open probe: the shelf never opened (waited 20s)" >> "$LOG"
+  fi
+  # Let the open animation settle before any frame is compared.
+  sleep 1.5
+fi
+if [ "$CASE" = "pin" ]; then
+  # Frame of the shelf as the hover left it, before anything is clicked: if this
+  # is already empty, the case is measuring a closed shelf, not a broken pin.
+  xwd -root -silent > "$PIN_BASE_XWD"
+  # The pin button lives at the right end of the header, just left of the gear.
+  # There is no window manager here to measure it against, so locate it by the
+  # line it logs when clicked, probing a small box around its known spot.
+  PIN_X=""; PIN_Y=""
+  for py in 277 270 284; do
+    for px in 205 197 213; do
+      python3 "$ROOT/scripts/x11-input.py" click "\$px" "\$py"
+      sleep 0.7
+      if grep -q '\[Pin\] shelf pinned: true' "$LOG"; then PIN_X="\$px"; PIN_Y="\$py"; break 2; fi
+    done
+  done
+  if [ -n "\$PIN_X" ]; then
+    # A stray second event would leave it unpinned: make the end state explicit
+    # instead of trusting that one "true" line somewhere in the log.
+    for attempt in 1 2; do
+      [ "\$(grep -o 'shelf pinned: [a-z]*' "$LOG" | tail -1 | awk '{print \$NF}')" = "true" ] && break
+      python3 "$ROOT/scripts/x11-input.py" click "\$PIN_X" "\$PIN_Y"
+      sleep 1
+    done
+  fi
+  if [ -z "\$PIN_X" ]; then
+    echo "[Pin] probe: button not found" >> "$LOG"
+  else
+    # The shelf must be up while the pointer is still on the button: if it is not,
+    # the leave is not what closed it and the rest of the case would blame the pin.
+    sleep 1
+    xwd -root -silent > "$PIN_BEFORE_XWD"
+    # Under load the first frame can land before the shelf repaints; one retry
+    # separates "slow frame" from "the pin never held" (an empty shelf stays empty).
+    if command -v ffmpeg >/dev/null; then
+      ffmpeg -y -loglevel error -i "$PIN_BEFORE_XWD" "$PIN_BEFORE_PNG" 2>/dev/null
+      if ! python3 "$ROOT/scripts/panel-open-check.py" "$PIN_BEFORE_PNG" >/dev/null 2>&1; then
+        # Say so out loud: a run that needs this is a slow frame, and a pattern of
+        # them is worth looking at rather than hiding behind the retry.
+        echo "[Pin] first frame after the pin click was empty; re-capturing after 2s" >> "$LOG"
+        sleep 2
+        xwd -root -silent > "$PIN_BEFORE_XWD"
+      fi
+    fi
+    # Pinned, and the pointer leaves for well longer than the close grace. The wait
+    # is generous on purpose: this runs back-to-back with other cases, and a slow
+    # frame here must not look like a retracted shelf.
+    python3 "$ROOT/scripts/x11-input.py" warp 1200 700
+    sleep 6
+    xwd -root -silent > "$PIN_OPEN_XWD"
+    # Same button again unpins it; now the leave must retract the shelf.
+    python3 "$ROOT/scripts/x11-input.py" warp "\$PIN_X" "\$PIN_Y"
+    sleep 1
+    # Count the closes so far: the app may already have logged one during startup,
+    # and a presence check would return immediately on that stale line.
+    closes_before=\$(grep -c '\[Panel\] open: false' "$LOG" 2>/dev/null || true)
+    python3 "$ROOT/scripts/x11-input.py" click "\$PIN_X" "\$PIN_Y"
+    sleep 1
+    python3 "$ROOT/scripts/x11-input.py" warp 1200 700
+    # Same rule as the open: wait for the close the app reports, then let the
+    # retract animation finish, instead of sleeping through a guess.
+    waited=0
+    while [ "\$waited" -lt 40 ]; do
+      closes_now=\$(grep -c '\[Panel\] open: false' "$LOG" 2>/dev/null || true)
+      [ "\${closes_now:-0}" -gt "\${closes_before:-0}" ] && break
+      sleep 0.5
+      waited=\$((waited + 1))
+    done
+    sleep 1.5
+    xwd -root -silent > "$PIN_CLOSED_XWD"
+  fi
 fi
 if [ "$CASE" = "focus" ]; then
   python3 "$ROOT/scripts/x11-input.py" click "$CLICK_X" "$CLICK_Y"
@@ -227,6 +349,74 @@ if [ "$CASE" = "hotkey" ]; then
   fi
   echo "RESULT: FAIL — no panel toggle after Alt+C (shortcut not registered?)"
   exit 1
+fi
+
+if [ "$CASE" = "pin" ]; then
+  if grep -q '\[Pin\] probe: button not found' "$LOG" 2>/dev/null; then
+    echo "RESULT: FAIL — could not reach the pin button (layout moved?)"
+    exit 1
+  fi
+  if ! grep -q '\[Pin\] shelf pinned: true' "$LOG" 2>/dev/null || ! grep -q '\[Pin\] shelf pinned: false' "$LOG" 2>/dev/null; then
+    echo "RESULT: FAIL — pin was not toggled on and off"
+    exit 1
+  fi
+  command -v ffmpeg >/dev/null || { echo "RESULT: FAIL — ffmpeg is needed to read the frames"; exit 1; }
+  ffmpeg -y -loglevel error -i "$PIN_BASE_XWD" "$PIN_BASE_PNG"
+  ffmpeg -y -loglevel error -i "$PIN_BEFORE_XWD" "$PIN_BEFORE_PNG"
+  ffmpeg -y -loglevel error -i "$PIN_OPEN_XWD" "$PIN_OPEN_PNG"
+  ffmpeg -y -loglevel error -i "$PIN_CLOSED_XWD" "$PIN_CLOSED_PNG"
+  echo "--- frames on disk (a stale file would make the checks meaningless) ---"
+  ls -l "$PIN_BASE_XWD" "$PIN_BEFORE_XWD" "$PIN_OPEN_XWD" "$PIN_CLOSED_XWD" 2>&1 | sed 's/^/  /'
+  echo "--- frame of the shelf the hover opened, before any click ---"
+  if ! python3 "$ROOT/scripts/panel-open-check.py" "$PIN_BASE_PNG"; then
+    echo "RESULT: FAIL — the hover never opened the shelf, so nothing about the pin was tested"
+    exit 1
+  fi
+  echo "--- frame right after pinning, pointer still on the button ---"
+  if ! python3 "$ROOT/scripts/panel-open-check.py" "$PIN_BEFORE_PNG"; then
+    echo "RESULT: FAIL — the shelf was not painted right after the pin click, so the pin never held"
+    exit 1
+  fi
+  echo "--- frame with the shelf pinned, pointer 1100px away ---"
+  if ! python3 "$ROOT/scripts/panel-open-check.py" "$PIN_OPEN_PNG"; then
+    echo "RESULT: FAIL — the shelf retracted although it was pinned"
+    exit 1
+  fi
+  echo "--- frame after unpinning, pointer in the same place ---"
+  if python3 "$ROOT/scripts/panel-open-check.py" "$PIN_CLOSED_PNG"; then
+    echo "RESULT: FAIL — the shelf stayed open after unpinning, so the frames prove nothing"
+    exit 1
+  fi
+  echo "RESULT: PASS — pinned: stays open with the pointer away; unpinned: retracts"
+  exit 0
+fi
+
+if [ "$CASE" = "zoom" ] || [ "$CASE" = "zoom100" ]; then
+  W="$(sed -E 's/.* ([0-9]+)x([0-9]+)\+.*/\1/' "$WININFO" 2>/dev/null)"
+  H="$(sed -E 's/.* ([0-9]+)x([0-9]+)\+.*/\2/' "$WININFO" 2>/dev/null)"
+  echo "--- window the app chose ---"
+  cat "$WININFO" 2>/dev/null || echo "(no Edge-Drop window found)"
+  echo
+  echo "width=$W height=$H"
+  case "$W" in ''|*[!0-9]*) echo "RESULT: FAIL — could not read the window geometry"; exit 1 ;; esac
+  if [ "$CASE" = "zoom" ]; then
+    if ! grep -q 'UI zoom 1.25x' "$LOG" 2>/dev/null; then
+      echo "RESULT: FAIL — 125% was in the store but the app never applied it"
+      exit 1
+    fi
+    if [ "$W" -lt 470 ] || [ "$W" -gt 560 ]; then
+      echo "RESULT: FAIL — a 125% shelf must be roughly 480-520px wide, got $W"
+      exit 1
+    fi
+    echo "RESULT: PASS — 125% zoom applied, window widened to $W"
+    exit 0
+  fi
+  if [ "$W" -lt 370 ] || [ "$W" -gt 430 ]; then
+    echo "RESULT: FAIL — the 100% shelf should be roughly 384-416px wide, got $W"
+    exit 1
+  fi
+  echo "RESULT: PASS — 100% baseline window is $W wide (the 125% case must be wider)"
+  exit 0
 fi
 
 if [ "$CASE" = "wayland" ]; then

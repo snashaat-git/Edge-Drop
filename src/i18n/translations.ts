@@ -36,6 +36,9 @@ export interface TranslationKeys {
     settings: string
     close: string
     whatsNew: string
+    /** Keep the shelf open when the cursor leaves (pin button). */
+    pin?: string
+    unpin?: string
   }
   behaviour: {
     languageTitle: string
@@ -151,6 +154,9 @@ export interface TranslationKeys {
     typography: string
     textSizeTitle: string
     textSizeDesc: string
+    /** UI zoom row: scales the whole shelf, not just type. */
+    uiZoomTitle?: string
+    uiZoomDesc?: string
     audioAndFeedback?: string
     small?: string
     normal?: string
@@ -806,7 +812,9 @@ export const en: TranslationKeys = {
     "searchPlaceholder": "Search history...",
     "settings": "Settings",
     "close": "Close",
-    "whatsNew": "What's New"
+    "whatsNew": "What's New",
+    "pin": "Pin shelf open",
+    "unpin": "Unpin shelf",
   },
   "behaviour": {
     "languageTitle": "Language",
@@ -922,6 +930,8 @@ export const en: TranslationKeys = {
     "typography": "Typography",
     "textSizeTitle": "Text size",
     "textSizeDesc": "Adjust UI typography scale across Edge-Drop",
+    "uiZoomTitle": "UI zoom",
+    "uiZoomDesc": "Scales the whole shelf — type, cards, icons and spacing",
     "audioAndFeedback": "Audio & Feedback",
     "small": "Small",
     "normal": "Normal",
@@ -1426,7 +1436,9 @@ export const es: TranslationKeys = {
     "searchPlaceholder": "Buscar en el historial...",
     "settings": "Configuración",
     "close": "Cerrar",
-    "whatsNew": "Novedades"
+    "whatsNew": "Novedades",
+    "pin": "Fijar estante abierto",
+    "unpin": "Soltar estante",
   },
   "behaviour": {
     "restartFailed": "Error al reiniciar",
@@ -1544,6 +1556,8 @@ export const es: TranslationKeys = {
     "typography": "Tipografía",
     "textSizeTitle": "Tamaño del texto",
     "textSizeDesc": "Ajusta la escala tipográfica de la interfaz en Edge-Drop",
+    "uiZoomTitle": "Zoom de la interfaz",
+    "uiZoomDesc": "Escala todo el estante: texto, tarjetas, iconos y espaciado",
     "audioAndFeedback": "Audio y respuesta",
     "small": "Pequeño",
     "normal": "Normal",
@@ -2054,7 +2068,9 @@ export const fr: TranslationKeys = {
     "searchPlaceholder": "Rechercher dans l'historique...",
     "settings": "Paramètres",
     "close": "Fermer",
-    "whatsNew": "Nouveautés"
+    "whatsNew": "Nouveautés",
+    "pin": "Épingler la barre ouverte",
+    "unpin": "Détacher la barre",
   },
   "behaviour": {
     "restartFailed": "Échec du redémarrage",
@@ -2172,6 +2188,8 @@ export const fr: TranslationKeys = {
     "typography": "Typographie",
     "textSizeTitle": "Taille du texte",
     "textSizeDesc": "Ajuster l'échelle typographique de l'interface dans Edge-Drop",
+    "uiZoomTitle": "Zoom de l'interface",
+    "uiZoomDesc": "Met à l'échelle toute la barre : texte, cartes, icônes et espacements",
     "audioAndFeedback": "Audio et retour",
     "small": "Petit",
     "normal": "Normal",
@@ -2682,7 +2700,9 @@ export const de: TranslationKeys = {
     "searchPlaceholder": "Verlauf durchsuchen...",
     "settings": "Einstellungen",
     "close": "Schließen",
-    "whatsNew": "Neuigkeiten"
+    "whatsNew": "Neuigkeiten",
+    "pin": "Regal anheften",
+    "unpin": "Regal lösen",
   },
   "behaviour": {
     "restartFailed": "Neustart fehlgeschlagen",
@@ -2800,6 +2820,8 @@ export const de: TranslationKeys = {
     "typography": "Typografie",
     "textSizeTitle": "Textgröße",
     "textSizeDesc": "Typografieskala der Benutzeroberfläche in Edge-Drop anpassen",
+    "uiZoomTitle": "UI-Zoom",
+    "uiZoomDesc": "Skaliert das gesamte Regal – Schrift, Karten, Symbole und Abstände",
     "audioAndFeedback": "Audio & Feedback",
     "small": "Klein",
     "normal": "Normal",
@@ -3302,7 +3324,9 @@ export const it: TranslationKeys = {
     "searchPlaceholder": "Cerca nella cronologia...",
     "settings": "Impostazioni",
     "close": "Chiudi",
-    "whatsNew": "Novità"
+    "whatsNew": "Novità",
+    "pin": "Fissa lo scaffale aperto",
+    "unpin": "Rilascia lo scaffale",
   },
   "behaviour": {
     "restartFailed": "Riavvio non riuscito",
@@ -3420,6 +3444,8 @@ export const it: TranslationKeys = {
     "typography": "Tipografia",
     "textSizeTitle": "Dimensione testo",
     "textSizeDesc": "Regola la scala tipografica dell'interfaccia in Edge-Drop",
+    "uiZoomTitle": "Zoom interfaccia",
+    "uiZoomDesc": "Ridimensiona l'intero scaffale: testo, schede, icone e spaziatura",
     "audioAndFeedback": "Audio e feedback",
     "small": "Piccolo",
     "normal": "Normale",
@@ -3930,7 +3956,9 @@ export const pt: TranslationKeys = {
     "searchPlaceholder": "Pesquisar no histórico...",
     "settings": "Configurações",
     "close": "Fechar",
-    "whatsNew": "Novidades"
+    "whatsNew": "Novidades",
+    "pin": "Fixar prateleira aberta",
+    "unpin": "Liberar prateleira",
   },
   "behaviour": {
     "restartFailed": "Falha ao reiniciar",
@@ -4048,6 +4076,8 @@ export const pt: TranslationKeys = {
     "typography": "Tipografia",
     "textSizeTitle": "Tamanho do texto",
     "textSizeDesc": "Ajustar escala tipográfica da interface no Edge-Drop",
+    "uiZoomTitle": "Zoom da interface",
+    "uiZoomDesc": "Aumenta toda a prateleira: texto, cartões, ícones e espaçamento",
     "audioAndFeedback": "Áudio e feedback",
     "small": "Pequeno",
     "normal": "Normal",
@@ -4558,7 +4588,9 @@ export const ru: TranslationKeys = {
     "searchPlaceholder": "Поиск по истории...",
     "settings": "Настройки",
     "close": "Закрыть",
-    "whatsNew": "Что нового"
+    "whatsNew": "Что нового",
+    "pin": "Закрепить полку",
+    "unpin": "Открепить полку",
   },
   "behaviour": {
     "restartFailed": "Не удалось перезапустить",
@@ -4676,6 +4708,8 @@ export const ru: TranslationKeys = {
     "typography": "Типографика",
     "textSizeTitle": "Размер текста",
     "textSizeDesc": "Настройте масштаб типографики интерфейса Edge-Drop",
+    "uiZoomTitle": "Масштаб интерфейса",
+    "uiZoomDesc": "Масштабирует всю полку: текст, карточки, значки и отступы",
     "audioAndFeedback": "Аудио и отклик",
     "small": "Малый",
     "normal": "Нормальный",
@@ -5194,7 +5228,9 @@ export const ja: TranslationKeys = {
     "searchPlaceholder": "履歴を検索...",
     "settings": "設定",
     "close": "閉じる",
-    "whatsNew": "新機能"
+    "whatsNew": "新機能",
+    "pin": "シェルフを固定",
+    "unpin": "固定を解除",
   },
   "behaviour": {
     "restartFailed": "再起動に失敗しました",
@@ -5312,6 +5348,8 @@ export const ja: TranslationKeys = {
     "typography": "タイポグラフィ",
     "textSizeTitle": "文字サイズ",
     "textSizeDesc": "Edge-Drop 全体のUIテキストサイズを調整",
+    "uiZoomTitle": "UI ズーム",
+    "uiZoomDesc": "シェルフ全体（文字・カード・アイコン・余白）を拡大縮小します",
     "audioAndFeedback": "オーディオとフィードバック",
     "small": "小",
     "normal": "標準",
@@ -5806,7 +5844,9 @@ export const ko: TranslationKeys = {
     "searchPlaceholder": "기록 검색...",
     "settings": "설정",
     "close": "닫기",
-    "whatsNew": "새 소식"
+    "whatsNew": "새 소식",
+    "pin": "선반 고정",
+    "unpin": "고정 해제",
   },
   "behaviour": {
     "restartFailed": "다시 시작하지 못했습니다",
@@ -5924,6 +5964,8 @@ export const ko: TranslationKeys = {
     "typography": "글꼴",
     "textSizeTitle": "텍스트 크기",
     "textSizeDesc": "Edge-Drop 전체의 UI 글꼴 배율 조정",
+    "uiZoomTitle": "UI 확대/축소",
+    "uiZoomDesc": "선반 전체(글꼴, 카드, 아이콘, 간격)를 확대/축소합니다",
     "audioAndFeedback": "오디오 및 피드백",
     "small": "작게",
     "normal": "보통",
@@ -6418,7 +6460,9 @@ export const zhCN: TranslationKeys = {
     "searchPlaceholder": "搜索历史记录...",
     "settings": "设置",
     "close": "关闭",
-    "whatsNew": "新功能"
+    "whatsNew": "新功能",
+    "pin": "固定面板",
+    "unpin": "取消固定",
   },
   "behaviour": {
     "restartFailed": "重启失败",
@@ -6536,6 +6580,8 @@ export const zhCN: TranslationKeys = {
     "typography": "排版",
     "textSizeTitle": "文字大小",
     "textSizeDesc": "调整 Edge-Drop 整体的界面排版比例",
+    "uiZoomTitle": "界面缩放",
+    "uiZoomDesc": "缩放整个面板：文字、卡片、图标和间距",
     "audioAndFeedback": "音频和反馈",
     "small": "小",
     "normal": "正常",
@@ -7030,7 +7076,9 @@ export const zhTW: TranslationKeys = {
     "searchPlaceholder": "搜尋歷史記錄...",
     "settings": "設定",
     "close": "關閉",
-    "whatsNew": "新功能"
+    "whatsNew": "新功能",
+    "pin": "固定面板",
+    "unpin": "取消固定",
   },
   "behaviour": {
     "restartFailed": "重新啟動失敗",
@@ -7148,6 +7196,8 @@ export const zhTW: TranslationKeys = {
     "typography": "字體排版",
     "textSizeTitle": "文字大小",
     "textSizeDesc": "調整 Edge-Drop 整體的介面字體比例",
+    "uiZoomTitle": "介面縮放",
+    "uiZoomDesc": "縮放整個面板：文字、卡片、圖示和間距",
     "audioAndFeedback": "音訊和回饋",
     "small": "小",
     "normal": "正常",
@@ -7642,7 +7692,9 @@ export const hi: TranslationKeys = {
     "searchPlaceholder": "इतिहास खोजें...",
     "settings": "सेटिंग्स",
     "close": "बंद करें",
-    "whatsNew": "नया क्या है"
+    "whatsNew": "नया क्या है",
+    "pin": "शेल्फ़ पिन करें",
+    "unpin": "पिन हटाएँ",
   },
   "behaviour": {
     "restartFailed": "रीस्टार्ट विफल",
@@ -7760,6 +7812,8 @@ export const hi: TranslationKeys = {
     "typography": "टाइपोग्राफी",
     "textSizeTitle": "टेक्स्ट आकार",
     "textSizeDesc": "Edge-Drop में UI टाइपोग्राफी स्केल समायोजित करें",
+    "uiZoomTitle": "UI ज़ूम",
+    "uiZoomDesc": "पूरे शेल्फ़ को स्केल करता है — टेक्स्ट, कार्ड, आइकन और स्पेसिंग",
     "audioAndFeedback": "ऑडियो और फ़ीडबैक",
     "small": "छोटा",
     "normal": "सामान्य",
@@ -8262,7 +8316,9 @@ export const ar: TranslationKeys = {
     "searchPlaceholder": "البحث في السجل...",
     "settings": "الإعدادات",
     "close": "إغلاق",
-    "whatsNew": "ما الجديد"
+    "whatsNew": "ما الجديد",
+    "pin": "تثبيت الشريط مفتوحًا",
+    "unpin": "إلغاء تثبيت الشريط",
   },
   "behaviour": {
     "restartFailed": "فشلت إعادة التشغيل",
@@ -8380,6 +8436,8 @@ export const ar: TranslationKeys = {
     "typography": "الطباعة",
     "textSizeTitle": "حجم النص",
     "textSizeDesc": "ضبط مقياس طباعة الواجهة في Edge-Drop",
+    "uiZoomTitle": "تكبير الواجهة",
+    "uiZoomDesc": "يكبّر الشريط بالكامل — النص والبطاقات والأيقونات والمسافات",
     "audioAndFeedback": "الصوت والاستجابة",
     "small": "صغير",
     "normal": "عادي",
@@ -8914,7 +8972,9 @@ export const fa: TranslationKeys = {
     "searchPlaceholder": "توی تاریخچه بگرد...",
     "settings": "تنظیمات",
     "close": "بستن",
-    "whatsNew": "تازه‌ها"
+    "whatsNew": "تازه‌ها",
+    "pin": "سنجاق کردن قفسه",
+    "unpin": "برداشتن سنجاق",
   },
   "behaviour": {
     "restartFailed": "راه‌اندازی مجدد ناموفق بود",
@@ -9032,6 +9092,8 @@ export const fa: TranslationKeys = {
     "typography": "نوشته‌ها",
     "textSizeTitle": "اندازه متن",
     "textSizeDesc": "اندازه نوشته‌های Edge-Drop رو تنظیم کن",
+    "uiZoomTitle": "بزرگ‌نمایی رابط",
+    "uiZoomDesc": "کل قفسه را مقیاس می‌کند: متن، کارت‌ها، نمادها و فاصله‌ها",
     "audioAndFeedback": "صدا و بازخورد",
     "small": "کوچیک",
     "normal": "معمولی",
@@ -9534,7 +9596,9 @@ export const bn: TranslationKeys = {
     "searchPlaceholder": "ইতিহাস অনুসন্ধান...",
     "settings": "সেটিংস",
     "close": "বন্ধ করুন",
-    "whatsNew": "নতুন কী"
+    "whatsNew": "নতুন কী",
+    "pin": "শেলফ পিন করুন",
+    "unpin": "পিন সরান",
   },
   "behaviour": {
     "restartFailed": "রিস্টার্ট ব্যর্থ হয়েছে",
@@ -9652,6 +9716,8 @@ export const bn: TranslationKeys = {
     "typography": "টাইপোগ্রাফি",
     "textSizeTitle": "টেক্সট আকার",
     "textSizeDesc": "Edge-Drop জুড়ে UI টাইপোগ্রাফি স্কেল সমন্বয় করুন",
+    "uiZoomTitle": "UI জুম",
+    "uiZoomDesc": "পুরো শেলফ স্কেল করে — টেক্সট, কার্ড, আইকন ও স্পেসিং",
     "audioAndFeedback": "অডিও ও প্রতিক্রিয়া",
     "small": "ছোট",
     "normal": "স্বাভাবিক",
@@ -10154,7 +10220,9 @@ export const tr: TranslationKeys = {
     "searchPlaceholder": "Geçmişte ara...",
     "settings": "Ayarlar",
     "close": "Kapat",
-    "whatsNew": "Yenilikler"
+    "whatsNew": "Yenilikler",
+    "pin": "Rafı sabitle",
+    "unpin": "Sabitlemeyi kaldır",
   },
   "behaviour": {
     "restartFailed": "Yeniden başlatma başarısız",
@@ -10272,6 +10340,8 @@ export const tr: TranslationKeys = {
     "typography": "Tipografi",
     "textSizeTitle": "Metin boyutu",
     "textSizeDesc": "Edge-Drop genelinde arayüz tipografi ölçeğini ayarla",
+    "uiZoomTitle": "Arayüz yakınlaştırma",
+    "uiZoomDesc": "Tüm rafı ölçekler: yazı, kartlar, simgeler ve boşluklar",
     "audioAndFeedback": "Ses ve Geri Bildirim",
     "small": "Küçük",
     "normal": "Normal",
@@ -10774,7 +10844,9 @@ export const vi: TranslationKeys = {
     "searchPlaceholder": "Tìm trong lịch sử...",
     "settings": "Cài đặt",
     "close": "Đóng",
-    "whatsNew": "Có gì mới"
+    "whatsNew": "Có gì mới",
+    "pin": "Ghim khay",
+    "unpin": "Bỏ ghim khay",
   },
   "behaviour": {
     "restartFailed": "Khởi động lại thất bại",
@@ -10892,6 +10964,8 @@ export const vi: TranslationKeys = {
     "typography": "Kiểu chữ",
     "textSizeTitle": "Cỡ chữ",
     "textSizeDesc": "Điều chỉnh tỷ lệ kiểu chữ giao diện trên Edge-Drop",
+    "uiZoomTitle": "Thu phóng giao diện",
+    "uiZoomDesc": "Phóng to toàn bộ khay: chữ, thẻ, biểu tượng và khoảng cách",
     "audioAndFeedback": "Âm thanh & Phản hồi",
     "small": "Nhỏ",
     "normal": "Thường",
@@ -11386,7 +11460,9 @@ export const pl: TranslationKeys = {
     "searchPlaceholder": "Szukaj w historii...",
     "settings": "Ustawienia",
     "close": "Zamknij",
-    "whatsNew": "Nowości"
+    "whatsNew": "Nowości",
+    "pin": "Przypnij półkę",
+    "unpin": "Odepnij półkę",
   },
   "behaviour": {
     "restartFailed": "Ponowne uruchomienie nie powiodło się",
@@ -11504,6 +11580,8 @@ export const pl: TranslationKeys = {
     "typography": "Typografia",
     "textSizeTitle": "Rozmiar tekstu",
     "textSizeDesc": "Dostosuj skalę typografii interfejsu w Edge-Drop",
+    "uiZoomTitle": "Powiększenie interfejsu",
+    "uiZoomDesc": "Skaluje całą półkę: tekst, karty, ikony i odstępy",
     "audioAndFeedback": "Dźwięk i informacja zwrotna",
     "small": "Mały",
     "normal": "Normalny",
@@ -12022,7 +12100,9 @@ export const nl: TranslationKeys = {
     "searchPlaceholder": "Geschiedenis doorzoeken...",
     "settings": "Instellingen",
     "close": "Sluiten",
-    "whatsNew": "Wat is er nieuw"
+    "whatsNew": "Wat is er nieuw",
+    "pin": "Plank vastzetten",
+    "unpin": "Plank losmaken",
   },
   "behaviour": {
     "restartFailed": "Opnieuw starten mislukt",
@@ -12140,6 +12220,8 @@ export const nl: TranslationKeys = {
     "typography": "Typografie",
     "textSizeTitle": "Tekstgrootte",
     "textSizeDesc": "Typografieschaal van de UI in Edge-Drop aanpassen",
+    "uiZoomTitle": "UI-zoom",
+    "uiZoomDesc": "Schaalt het hele paneel: tekst, kaarten, pictogrammen en afstand",
     "audioAndFeedback": "Audio en feedback",
     "small": "Klein",
     "normal": "Normaal",
@@ -12642,7 +12724,9 @@ export const sv: TranslationKeys = {
     "searchPlaceholder": "Sök i historik...",
     "settings": "Inställningar",
     "close": "Stäng",
-    "whatsNew": "Nyheter"
+    "whatsNew": "Nyheter",
+    "pin": "Fäst hyllan",
+    "unpin": "Lossa hyllan",
   },
   "behaviour": {
     "restartFailed": "Omstart misslyckades",
@@ -12760,6 +12844,8 @@ export const sv: TranslationKeys = {
     "typography": "Typografi",
     "textSizeTitle": "Textstorlek",
     "textSizeDesc": "Justera typografiskala för gränssnittet i Edge-Drop",
+    "uiZoomTitle": "UI-zoom",
+    "uiZoomDesc": "Skalar hela hyllan: text, kort, ikoner och avstånd",
     "audioAndFeedback": "Ljud och återkoppling",
     "small": "Liten",
     "normal": "Normal",
@@ -13262,7 +13348,9 @@ export const id: TranslationKeys = {
     "searchPlaceholder": "Cari riwayat...",
     "settings": "Pengaturan",
     "close": "Tutup",
-    "whatsNew": "Apa yang baru"
+    "whatsNew": "Apa yang baru",
+    "pin": "Sematkan rak",
+    "unpin": "Lepas sematan",
   },
   "behaviour": {
     "restartFailed": "Gagal memulai ulang",
@@ -13380,6 +13468,8 @@ export const id: TranslationKeys = {
     "typography": "Tipografi",
     "textSizeTitle": "Ukuran teks",
     "textSizeDesc": "Sesuaikan skala tipografi antarmuka di Edge-Drop",
+    "uiZoomTitle": "Zoom UI",
+    "uiZoomDesc": "Menskalakan seluruh rak: teks, kartu, ikon, dan jarak",
     "audioAndFeedback": "Audio & Umpan Balik",
     "small": "Kecil",
     "normal": "Normal",
@@ -13874,7 +13964,9 @@ export const uk: TranslationKeys = {
     "searchPlaceholder": "Пошук в історії...",
     "settings": "Налаштування",
     "close": "Закрити",
-    "whatsNew": "Що нового"
+    "whatsNew": "Що нового",
+    "pin": "Закріпити полицю",
+    "unpin": "Відкріпити полицю",
   },
   "behaviour": {
     "restartFailed": "Не вдалося перезапустити",
@@ -13992,6 +14084,8 @@ export const uk: TranslationKeys = {
     "typography": "Типографіка",
     "textSizeTitle": "Розмір тексту",
     "textSizeDesc": "Налаштуйте масштаб типографіки інтерфейсу в Edge-Drop",
+    "uiZoomTitle": "Масштаб інтерфейсу",
+    "uiZoomDesc": "Масштабує всю полицю: текст, картки, значки та відступи",
     "audioAndFeedback": "Аудіо та відгук",
     "small": "Малий",
     "normal": "Звичайний",
@@ -14510,7 +14604,9 @@ export const el: TranslationKeys = {
     "searchPlaceholder": "Αναζήτηση στο ιστορικό...",
     "settings": "Ρυθμίσεις",
     "close": "Κλείσιμο",
-    "whatsNew": "Τι νέο υπάρχει"
+    "whatsNew": "Τι νέο υπάρχει",
+    "pin": "Καρφίτσωμα ραφιού",
+    "unpin": "Ξεκαρφίτσωμα ραφιού",
   },
   "behaviour": {
     "restartFailed": "Η επανεκκίνηση απέτυχε",
@@ -14628,6 +14724,8 @@ export const el: TranslationKeys = {
     "typography": "Τυπογραφία",
     "textSizeTitle": "Μέγεθος κειμένου",
     "textSizeDesc": "Προσαρμογή κλίμακας τυπογραφίας διεπαφής σε όλο το Edge-Drop",
+    "uiZoomTitle": "Ζουμ διεπαφής",
+    "uiZoomDesc": "Κλιμακώνει ολόκληρο το ράφι: κείμενο, κάρτες, εικονίδια και αποστάσεις",
     "audioAndFeedback": "Ήχος και ανάδραση",
     "small": "Μικρό",
     "normal": "Κανονικό",
@@ -15130,7 +15228,9 @@ export const cs: TranslationKeys = {
     "searchPlaceholder": "Hledat v historii...",
     "settings": "Nastavení",
     "close": "Zavřít",
-    "whatsNew": "Co je nového"
+    "whatsNew": "Co je nového",
+    "pin": "Připnout polici",
+    "unpin": "Odepnout polici",
   },
   "behaviour": {
     "restartFailed": "Restart se nezdařil",
@@ -15248,6 +15348,8 @@ export const cs: TranslationKeys = {
     "typography": "Typografie",
     "textSizeTitle": "Velikost textu",
     "textSizeDesc": "Upravit měřítko typografie rozhraní v Edge-Drop",
+    "uiZoomTitle": "Zvětšení rozhraní",
+    "uiZoomDesc": "Škáluje celou polici: text, karty, ikony a mezery",
     "audioAndFeedback": "Zvuk a odezva",
     "small": "Malý",
     "normal": "Normální",
@@ -15766,7 +15868,9 @@ export const ro: TranslationKeys = {
     "searchPlaceholder": "Caută în istoric...",
     "settings": "Setări",
     "close": "Închide",
-    "whatsNew": "Noutăți"
+    "whatsNew": "Noutăți",
+    "pin": "Fixează raftul",
+    "unpin": "Anulează fixarea",
   },
   "behaviour": {
     "restartFailed": "Repornirea a eșuat",
@@ -15884,6 +15988,8 @@ export const ro: TranslationKeys = {
     "typography": "Tipografie",
     "textSizeTitle": "Dimensiune text",
     "textSizeDesc": "Ajustează scara tipografică a interfeței în Edge-Drop",
+    "uiZoomTitle": "Zoom interfață",
+    "uiZoomDesc": "Scalează întregul raft: text, carduri, pictograme și spațiere",
     "audioAndFeedback": "Audio și feedback",
     "small": "Mic",
     "normal": "Normal",
@@ -16394,7 +16500,9 @@ export const hu: TranslationKeys = {
     "searchPlaceholder": "Keresés az előzményekben...",
     "settings": "Beállítások",
     "close": "Bezárás",
-    "whatsNew": "Újdonságok"
+    "whatsNew": "Újdonságok",
+    "pin": "Polc rögzítése",
+    "unpin": "Rögzítés feloldása",
   },
   "behaviour": {
     "restartFailed": "Az újraindítás sikertelen",
@@ -16512,6 +16620,8 @@ export const hu: TranslationKeys = {
     "typography": "Tipográfia",
     "textSizeTitle": "Szövegméret",
     "textSizeDesc": "Az Edge-Drop felület tipográfiai skálájának beállítása",
+    "uiZoomTitle": "Felület nagyítása",
+    "uiZoomDesc": "A teljes polcot méretezi: szöveg, kártyák, ikonok és térközök",
     "audioAndFeedback": "Hang és visszacsatolás",
     "small": "Kicsi",
     "normal": "Normál",
@@ -17014,7 +17124,9 @@ export const da: TranslationKeys = {
     "searchPlaceholder": "Søg i historik...",
     "settings": "Indstillinger",
     "close": "Luk",
-    "whatsNew": "Nyheder"
+    "whatsNew": "Nyheder",
+    "pin": "Fastgør hylden",
+    "unpin": "Frigør hylden",
   },
   "behaviour": {
     "restartFailed": "Genstart mislykkedes",
@@ -17132,6 +17244,8 @@ export const da: TranslationKeys = {
     "typography": "Typografi",
     "textSizeTitle": "Tekststørrelse",
     "textSizeDesc": "Juster UI-typografiskala på tværs af Edge-Drop",
+    "uiZoomTitle": "UI-zoom",
+    "uiZoomDesc": "Skalerer hele hylden: tekst, kort, ikoner og afstand",
     "audioAndFeedback": "Lyd og feedback",
     "small": "Lille",
     "normal": "Normal",
@@ -17634,7 +17748,9 @@ export const fi: TranslationKeys = {
     "searchPlaceholder": "Hae historiasta...",
     "settings": "Asetukset",
     "close": "Sulje",
-    "whatsNew": "Uutta"
+    "whatsNew": "Uutta",
+    "pin": "Kiinnitä hylly",
+    "unpin": "Irrota hylly",
   },
   "behaviour": {
     "restartFailed": "Uudelleenkäynnistys epäonnistui",
@@ -17752,6 +17868,8 @@ export const fi: TranslationKeys = {
     "typography": "Typografia",
     "textSizeTitle": "Tekstin koko",
     "textSizeDesc": "Säädä käyttöliittymän typografia-asteikkoa Edge-Dropissa",
+    "uiZoomTitle": "Käyttöliittymän zoomaus",
+    "uiZoomDesc": "Skaalaa koko hyllyn: teksti, kortit, kuvakkeet ja välit",
     "audioAndFeedback": "Ääni ja palaute",
     "small": "Pieni",
     "normal": "Normaali",
@@ -18254,7 +18372,9 @@ export const th: TranslationKeys = {
     "searchPlaceholder": "ค้นหาในประวัติ...",
     "settings": "การตั้งค่า",
     "close": "ปิด",
-    "whatsNew": "มีอะไรใหม่"
+    "whatsNew": "มีอะไรใหม่",
+    "pin": "ปักหมุดชั้นวาง",
+    "unpin": "เลิกปักหมุด",
   },
   "behaviour": {
     "restartFailed": "เริ่มใหม่ไม่สำเร็จ",
@@ -18372,6 +18492,8 @@ export const th: TranslationKeys = {
     "typography": "การพิมพ์",
     "textSizeTitle": "ขนาดข้อความ",
     "textSizeDesc": "ปรับสเกลการพิมพ์ของส่วนติดต่อใน Edge-Drop",
+    "uiZoomTitle": "ซูม UI",
+    "uiZoomDesc": "ย่อ/ขยายทั้งชั้นวาง — ข้อความ การ์ด ไอคอน และระยะห่าง",
     "audioAndFeedback": "เสียงและการตอบสนอง",
     "small": "เล็ก",
     "normal": "ปกติ",
@@ -18866,7 +18988,9 @@ export const he: TranslationKeys = {
     "searchPlaceholder": "חיפוש בהיסטוריה...",
     "settings": "הגדרות",
     "close": "סגור",
-    "whatsNew": "מה חדש"
+    "whatsNew": "מה חדש",
+    "pin": "הצמדת המדף",
+    "unpin": "שחרור המדף",
   },
   "behaviour": {
     "restartFailed": "ההפעלה מחדש נכשלה",
@@ -18984,6 +19108,8 @@ export const he: TranslationKeys = {
     "typography": "טיפוגרפיה",
     "textSizeTitle": "גודל טקסט",
     "textSizeDesc": "כוון סקלת טיפוגרפיה של ממשק המשתמש ב-Edge-Drop",
+    "uiZoomTitle": "זום ממשק",
+    "uiZoomDesc": "משנה את קנה המידה של המדף כולו: טקסט, כרטיסים, סמלים ומרווחים",
     "audioAndFeedback": "אודיו ומשוב",
     "small": "קטן",
     "normal": "רגיל",
@@ -19494,7 +19620,9 @@ export const no: TranslationKeys = {
     "searchPlaceholder": "Søk i historikk...",
     "settings": "Innstillinger",
     "close": "Lukk",
-    "whatsNew": "Hva er nytt"
+    "whatsNew": "Hva er nytt",
+    "pin": "Fest hyllen",
+    "unpin": "Løsne hyllen",
   },
   "behaviour": {
     "restartFailed": "Omstart mislyktes",
@@ -19612,6 +19740,8 @@ export const no: TranslationKeys = {
     "typography": "Typografi",
     "textSizeTitle": "Tekststørrelse",
     "textSizeDesc": "Juster UI-typografiskala på tvers av Edge-Drop",
+    "uiZoomTitle": "UI-zoom",
+    "uiZoomDesc": "Skalerer hele hyllen: tekst, kort, ikoner og avstand",
     "audioAndFeedback": "Lyd og tilbakemelding",
     "small": "Liten",
     "normal": "Normal",

@@ -26,6 +26,22 @@ export function normalizeHoverOpenDelay(value: unknown): number {
   return Math.min(HOVER_OPEN_DELAY_MAX, Math.max(HOVER_OPEN_DELAY_MIN, snapped))
 }
 
+/**
+ * UI zoom bounds and grid. Below 0.8 the 384px panel stops fitting its own
+ * labels; above 1.5 the shelf eats a quarter of a 1080p screen's width, which
+ * is no longer a shelf.
+ */
+export const UI_ZOOM_MIN = 0.8
+export const UI_ZOOM_MAX = 1.5
+export const UI_ZOOM_STEP = 0.05
+
+/** Clamp and snap a stored zoom to the grid; anything invalid becomes 1.0. */
+export function normalizeUiZoom(value: unknown): number {
+  const n = typeof value === 'number' && Number.isFinite(value) ? value : 1
+  const snapped = Math.round(n / UI_ZOOM_STEP) * UI_ZOOM_STEP
+  return Math.min(UI_ZOOM_MAX, Math.max(UI_ZOOM_MIN, Number(snapped.toFixed(2))))
+}
+
 /** Update behavior mode. See Settings.updateMode. */
 export type UpdateMode = 'auto' | 'notify' | 'off'
 
@@ -222,6 +238,13 @@ export interface Settings {
   hoverOpenDelay?: number
   /** Font size scale multiplier (0.85 = Small, 1.00 = Normal, 1.15 = Large). Default: 1.0. */
   fontSizeScale?: number
+  /**
+   * UI zoom: scales the whole panel (type, cards, icons, spacing) by this
+   * factor, not just the text. The window widens with it so the layout keeps
+   * its CSS geometry and nothing is cropped. Range UI_ZOOM_MIN..UI_ZOOM_MAX.
+   * Default: 1.0.
+   */
+  uiZoom?: number
   /** When true, automatically checks for and downloads app updates in background. Default: true. Legacy: kept in sync from updateMode for downgrade safety. */
   autoUpdates?: boolean
   /**
@@ -272,6 +295,7 @@ export const DEFAULT_SETTINGS: Settings = {
   hoverActivation: true,
   hoverOpenDelay: 0,
   fontSizeScale: 1.0,
+  uiZoom: 1.0,
   autoUpdates: true,
   updateMode: 'auto',
   skippedUpdateVersion: undefined,

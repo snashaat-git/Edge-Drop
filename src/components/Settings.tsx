@@ -1374,6 +1374,22 @@ export function Settings({
               (v) => Math.abs((settings.fontSizeScale ?? 1.0) - v) < 0.05,
               (v) => patch({ fontSizeScale: v })
             )
+          },
+          {
+            id: 'ui-zoom',
+            title: t('appearance.uiZoomTitle') || 'UI zoom',
+            desc: t('appearance.uiZoomDesc') || 'Scales the whole shelf — type, cards, icons and spacing.',
+            below: pills(
+              [
+                { label: '80%', val: 0.8 },
+                { label: '90%', val: 0.9 },
+                { label: '100%', val: 1.0 },
+                { label: '110%', val: 1.1 },
+                { label: '125%', val: 1.25 }
+              ],
+              (v) => Math.abs((settings.uiZoom ?? 1.0) - v) < 0.001,
+              (v) => patch({ uiZoom: v })
+            )
           }
         ]
       } satisfies GroupSpec] : []),

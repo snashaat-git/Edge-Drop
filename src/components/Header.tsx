@@ -1,6 +1,6 @@
 import { useStore } from '../store/appStore'
 import { SegmentedControl } from './SegmentedControl'
-import { GearIcon, CloseIcon, InfoIcon, ClockIcon, TypeIcon, LinkIcon, ImageIcon, FilesIcon, PaletteIcon, EmojiSmileIcon } from './icons'
+import { GearIcon, CloseIcon, InfoIcon, ClockIcon, TypeIcon, LinkIcon, ImageIcon, FilesIcon, PaletteIcon, EmojiSmileIcon, PinIcon, PinFillIcon } from './icons'
 import { playButtonClickSound } from '../lib/soundEffects'
 import { loadEmojiCatalog } from '../lib/emoji/load'
 import { ShelfSearch } from './ShelfSearch'
@@ -45,6 +45,9 @@ export function Header({ isHorizontal = false, itemCount, clearProps }: HeaderPr
     }
     window.open('https://www.edgedrop.app/changelog', '_blank')
   }
+
+  const pinned = useStore((s) => s.pinned)
+  const setPinned = useStore((s) => s.setPinned)
 
   const typeFilter = useStore((s) => s.typeFilter)
   const setTypeFilter = useStore((s) => s.setTypeFilter)
@@ -279,6 +282,44 @@ export function Header({ isHorizontal = false, itemCount, clearProps }: HeaderPr
                 }}
               />
             )}
+          </button>
+        )}
+
+        {/* Pin: the shelf stops retracting when the cursor leaves. */}
+        {!settingsOpen && (
+          <button
+            type="button"
+            className={`icon-btn${pinned ? ' active' : ''}`}
+            title={pinned ? t('header.unpin') : t('header.pin')}
+            aria-pressed={pinned}
+            onClick={() => {
+              playButtonClickSound()
+              const next = !pinned
+              // The smoke harness locates this button by this line alone (no WM
+              // in Xvfb to measure against), so keep it stable.
+              console.log(`[Pin] shelf pinned: ${next}`)
+              setPinned(next)
+              // Pinning keeps the shelf clickable; unpinning leaves it open until
+              // the pointer leaves again, which useEdgeHover then acts on.
+              if (next) window.edge.setInteractive(true)
+            }}
+            style={{
+              color: pinned ? '#ffffff' : 'rgba(255, 255, 255, 0.75)',
+              background: 'transparent',
+              border: 'none',
+              boxShadow: 'none',
+              flexShrink: 0,
+              cursor: 'pointer',
+              width: 32,
+              height: 32,
+              display: 'grid',
+              placeItems: 'center',
+              position: 'relative',
+              borderRadius: 8,
+              transition: 'all 0.15s ease'
+            }}
+          >
+            {pinned ? <PinFillIcon width={16} height={16} /> : <PinIcon width={16} height={16} />}
           </button>
         )}
 

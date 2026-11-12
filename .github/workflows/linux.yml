@@ -72,7 +72,10 @@ jobs:
         run: |
           set -u
           failed=0
-          for case in text image files filesout paste nopaste focus wayland hotkey; do
+          # pin/zoom/zoom100 cover the shelf's own features: a pin that has to
+          # survive the pointer leaving, and a UI zoom that has to widen the window
+          # by exactly its factor (the two cases are a comparison, not one guess).
+          for case in text image files filesout paste nopaste focus wayland hotkey pin zoom zoom100; do
             printf '%-9s ' "$case"
             if out=$(timeout 180 scripts/linux-smoke.sh "$case" 2>&1); then
               printf '%s\n' "$out" | grep -E '^RESULT' | tail -1

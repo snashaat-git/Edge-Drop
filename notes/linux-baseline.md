@@ -203,6 +203,68 @@ Getting it green cost four failed runs, each with a different cause — worth re
 - **One upstream test is timing-flaky** under load (the mocked release fetch on a 100ms clock); the gate retries
   once, and a real regression still fails both attempts.
 
+## Post-MVP features (both platforms)
+
+### Pin the shelf open
+
+A pin button in the header keeps the shelf up when the pointer leaves. The state is a renderer store flag
+(`pinned`, session-only — a shelf that survives a restart is a surprise, not a preference), and the two places
+that decide to retract (`closePanel`, `scheduleClose` in `useEdgeHover`) return early while it is set. Any real
+close — hotkey, tray, the fullscreen guard — releases the pin in `setOpen`, so a closed shelf never reopens
+itself on the next hover.
+
+The pin has to be checked in **three** places, not two. `closePanel()` and `scheduleClose()` were guarded
+first, and the shelf still retracted now and then: `closePanel()` arms its own 300ms timers for the flyout and
+preview branches, and those callbacks call `closePanelNow()` directly. Whether the shelf stayed up depended on
+whether a pointer-leave had armed one of those timers in the 300ms before the pin click — which is why a hand
+test never showed it and a batch of smoke cases did about half the time. Both callbacks now re-read the store
+and bail out while pinned. `tests/pinOpen.test.ts` asserts a pin check precedes `closePanelNow()` inside every
+armed timer, and fixes the number of retraction call sites at three, so the next added path has to earn a guard.
+
+Proof: `scripts/linux-smoke.sh pin` clicks the button (found by the `[Pin] shelf pinned:` line it logs, because
+Xvfb has no window manager to measure against), parks the pointer 1100px away, and compares four frames: shelf
+as the hover opened it, shelf right after the pin click, shelf with the pointer 1100px away, shelf after
+unpinning with the pointer in the same place. **15914 / 15914 / 15914 / 0 lit pixels.** The first frame is what
+tells "the pin failed" apart from "the shelf was never open"; without the last frame the other three prove
+nothing.
+
+### What the harness had to learn for these two cases
+
+Three failures in a row were the harness, not the features, and each one looked like a product bug:
+
+- **A fixed sleep cannot prove an open.** On a loaded machine the first paint lands seconds after the pointer
+  reaches the edge, so `warp; sleep 5; screenshot` reads a real open as "the hover never opened the shelf". The
+  store now logs `[Panel] open: true/false`, and the cases wait for that line (20s cap) instead of guessing.
+- **`panel-open-check.py` needed Pillow.** A harness that resets `PATH` picks a different `python3` than the
+  developer's shell, and the check died with `ModuleNotFoundError: No module named 'PIL'` — reported, of course,
+  as a retracted shelf. It now decodes through `ffmpeg` and counts bytes with stdlib only, so it works on the CI
+  runner (which has no Pillow) and on any interpreter.
+- **A warp to where the pointer already is emits no motion event**, and the app arms its open-dwell on the
+  crossing, so the harness now moves away first and then onto the edge.
+
+The lesson worth keeping: a pixel check has to say *which* frame it judged and whether that frame was fresh.
+Printing the frame timestamps before the assertions is what separated "the pin failed" from "the shelf was never
+open" and from "the checker could not read the file".
+
+### UI zoom
+
+Settings → Appearance → Typography has a UI zoom row (80/90/100/110/125%), stored as `uiZoom`
+(0.8–1.5, snapped to 5%). It scales the whole shelf, not just type — the existing Text size row stays as it was.
+
+The mechanism is Chromium's zoom factor, plus the window widening by the same factor in `getStickGeometry`:
+a zoom lowers the CSS viewport (`CSS px = device px / zoom`), so widening the window keeps every CSS
+measurement — the 270px blade, card heights, flyout rects — exactly where it was and only the drawing scale
+changes. Cursor positions are divided by the same factor in the poll before they cross to the renderer, so its
+hover and close maths keeps comparing CSS pixels with CSS pixels; that division is the one place the factor is
+applied, by design. `applyUiZoom()` runs on window creation, on `did-finish-load` (zoom does not survive a
+navigation), and from `settings:update` together with `repositionWindow()` so the factor and the bounds land in
+the same frame.
+
+Proof: `scripts/linux-smoke.sh zoom` (seeds `uiZoom: 1.25` before launch) and `zoom100` measure the panel
+window with `xwininfo`: **384px at 100%, 480px at 125%** — exactly `PANEL_WIDTH × zoom` — plus the
+`[Window] UI zoom 1.25x` line. `tests/uiZoom.test.ts` covers the clamp/snap grid and that a 125% and a 150%
+shelf still fit inside the work area.
+
 ## Known gaps to close (see the plan)
 
 - Launch-at-login is covered on Linux by `electron/main/autostartLinux.ts`; the remaining Windows-only paths

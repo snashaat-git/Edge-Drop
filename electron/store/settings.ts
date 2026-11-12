@@ -6,7 +6,7 @@
  * defaults so a bad field never takes the whole app down.
  */
 import { readFileSync, writeFileSync, existsSync } from 'node:fs'
-import { DEFAULT_SETTINGS, isUpdateMode, normalizeHoverOpenDelay, type Settings } from '../../shared/types'
+import { DEFAULT_SETTINGS, isUpdateMode, normalizeHoverOpenDelay, normalizeUiZoom, type Settings } from '../../shared/types'
 import { PATHS } from './paths'
 
 let cache: Settings | null = null
@@ -19,6 +19,7 @@ function merge(base: Settings, patch: Partial<Settings>): Settings {
   out.autoDeleteHours = Math.max(0, Number(out.autoDeleteHours) || 0)
   out.verticalOffset = Math.min(1.0, Math.max(0.0, typeof out.verticalOffset === 'number' ? out.verticalOffset : 0.5))
   out.hoverOpenDelay = normalizeHoverOpenDelay(out.hoverOpenDelay)
+  out.uiZoom = normalizeUiZoom(out.uiZoom)
   if (out.uiStyle !== 'modern' && out.uiStyle !== 'compact') {
     out.uiStyle = 'modern'
   }

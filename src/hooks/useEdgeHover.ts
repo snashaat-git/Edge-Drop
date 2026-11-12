@@ -292,6 +292,8 @@ export function useEdgeHover(): void {
     const closePanel = () => {
       const state = useStore.getState()
       if (!state.open) return
+      // Pinned: the shelf stays until the user unpins it or closes it outright.
+      if (state.pinned) return
       if (state.sliderActive || state.edgeTransition?.active) return
       if (state.dragActive && !state.internalDragReq) return
 
@@ -304,7 +306,12 @@ export function useEdgeHover(): void {
         if (graceTimer !== undefined) window.clearTimeout(graceTimer)
         graceTimer = window.setTimeout(() => {
           graceTimer = undefined
-          if (!useStore.getState().open) return // already closed by another path
+          const pending = useStore.getState()
+          if (!pending.open) return // already closed by another path
+          // Re-check the pin here: this timer was armed while the pointer was
+          // leaving, and the click that pins can land inside these 300ms. The
+          // callback is a second retraction path, so it needs the guard too.
+          if (pending.pinned) return
           closePanelNow()
         }, 300)
         return
@@ -317,7 +324,10 @@ export function useEdgeHover(): void {
         if (graceTimer !== undefined) window.clearTimeout(graceTimer)
         graceTimer = window.setTimeout(() => {
           graceTimer = undefined
-          if (!useStore.getState().open) return
+          const pending = useStore.getState()
+          if (!pending.open) return
+          // Same guard as the flyout branch: an armed close must not beat the pin.
+          if (pending.pinned) return
           closePanelNow()
         }, 300)
         return
@@ -328,6 +338,9 @@ export function useEdgeHover(): void {
 
     const scheduleClose = (delay = GRACE_MS) => {
       const state = useStore.getState()
+      // Pinned: leaving the shelf is not a reason to retract it, so don't even
+      // arm the timer (an armed timer would still fire after an unpin).
+      if (state.pinned) return
       if (state.sliderActive || state.edgeTransition?.active) return
       if (state.dragActive && !state.internalDragReq) return
       if (graceTimer !== undefined) return // already closing
