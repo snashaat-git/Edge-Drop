@@ -118,6 +118,9 @@ async function readFileDropListNative(): Promise<string[] | null> {
  * unavailable or PowerShell times out.
  */
 async function readFileListAsync(): Promise<string[] | null> {
+  // Off Windows there is no CF_HDROP / FileNameW: file managers publish the
+  // list as text/uri-list, which is also what our own writes produce.
+  if (process.platform !== 'win32') return clipboard.readUriListPaths()
   try {
     // First, confirm there is actually a file list on the clipboard before
     // reading it. FileNameW being present is sufficient signal.
@@ -693,7 +696,7 @@ export async function clipboardSignature(): Promise<string> {
 
   // If files are on the clipboard, their paths are the most stable fingerprint.
   // Use fast, non-blocking read to avoid spawning a child process during polling.
-  const files = readFileListFast()
+  const files = process.platform === 'win32' ? readFileListFast() : await clipboard.readUriListPaths()
   if (files && files.length) {
     return `${seqPrefix}files:${files.join('\n')}`
   }

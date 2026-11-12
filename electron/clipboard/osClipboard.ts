@@ -17,6 +17,7 @@
  * on the clipboard.
  */
 import { clipboard, ClipboardItem, nativeImage, type NativeImage } from 'electron'
+import { existsSync } from 'node:fs'
 import koffi from 'koffi'
 
 const CF_BITMAP = 2
@@ -168,6 +169,38 @@ async function clipboardEntry(type: string): Promise<Blob | null> {
   if (!item || !item.types.includes(type)) return null
   const data = await item.getType(type)
   return data instanceof Blob ? data : null
+}
+
+/**
+ * Files currently on the clipboard as text/uri-list, as absolute paths.
+ *
+ * The X11 convention every Linux file manager writes (Nautilus also adds
+ * x-special/gnome-copied-files, but text/uri-list is the portable one).
+ * Windows reports its own CF_HDROP / FileNameW formats instead, so this
+ * returns null there and formats.ts keeps using the Win32 read.
+ */
+export async function readUriListPaths(): Promise<string[] | null> {
+  if (process.platform === 'win32') return null
+  try {
+    const blob = await clipboardEntry('text/uri-list')
+    if (!blob) return null
+    const text = await blob.text()
+    const paths = text
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0 && !line.startsWith('#') && line.startsWith('file://'))
+      .map((line) => {
+        try {
+          return decodeURIComponent(new URL(line).pathname)
+        } catch {
+          return ''
+        }
+      })
+      .filter((p) => p.length > 0 && existsSync(p))
+    return paths.length > 0 ? paths : null
+  } catch {
+    return null
+  }
 }
 
 /** The clipboard's HTML markup (what the old `readHTML` returned), or ''. */
