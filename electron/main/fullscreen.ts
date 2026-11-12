@@ -143,7 +143,14 @@ export function triggerFullscreenCheck(): void {
 const FULLSCREEN_CHECK_INTERVAL_MS = 800
 
 export function startFullscreenMonitor(): void {
-  if (process.platform !== 'win32') return
+  if (process.platform !== 'win32') {
+    // Known Linux gap: Windows answers "is a fullscreen app in front" with one
+    // shell32 call. There is no portable X11/Wayland equivalent — each desktop
+    // exposes it differently (or not at all) — so the shelf will pop over a
+    // fullscreen video or game. Documented in notes/linux-baseline.md; see the
+    // plan's Task 3.3 for the xprop-based approximation if it becomes worth it.
+    return
+  }
   if (checkTimer !== null) return
 
   triggerFullscreenCheck()  // seed cache immediately

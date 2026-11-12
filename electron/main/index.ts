@@ -47,6 +47,27 @@ app.enableSandbox()
 // the thumbnail path below rather than by this JavaScript heap limit.
 app.commandLine.appendSwitch('js-flags', '--max-old-space-size=512 --expose-gc')
 
+// ---- linux session ---------------------------------------------------------
+// The shelf pins itself to a screen edge with setBounds(). A Wayland client may
+// not position its own windows, so on a Wayland session we ask Chromium for the
+// X11 (XWayland) backend, where setBounds works and the pointer poll behind
+// hover-to-open behaves as on Windows. EDGE_DROP_NATIVE_WAYLAND=1 opts out for
+// anyone who wants to experiment with native Wayland (the shelf will not be
+// able to hold its edge; see notes/linux-baseline.md).
+if (process.platform === 'linux') {
+  const waylandSession =
+    process.env.XDG_SESSION_TYPE === 'wayland' || !!process.env.WAYLAND_DISPLAY
+  const nativeWaylandRequested = process.env.EDGE_DROP_NATIVE_WAYLAND === '1'
+  if (waylandSession && !nativeWaylandRequested) {
+    app.commandLine.appendSwitch('ozone-platform', 'x11')
+  }
+  console.log(
+    `[Main] linux session=${process.env.XDG_SESSION_TYPE ?? 'unknown'}` +
+      ` (${waylandSession ? 'wayland' : 'x11'}) ` +
+      `ozone=${waylandSession && !nativeWaylandRequested ? 'x11 (XWayland)' : 'native'}`
+  )
+}
+
 // ---- single instance -------------------------------------------------------
 /** After an update, a silent start at login shows the new tour this long after launch (see onboardingDue). */
 const UPDATE_TOUR_DELAY_AT_LOGIN_MS = 15_000
