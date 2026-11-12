@@ -45,7 +45,16 @@ jobs:
             echo "no paste injector on PATH (expected)"
 
       - name: install
-        run: npm ci
+        # `npm ci` refuses this tree on the runner: it wants electron-builder's
+        # Windows-only subtrees (electron-builder-squirrel-windows, electron-winstaller,
+        # postject) recorded in the lock, and a lock generated on Linux does not contain
+        # them — the same lock installs fine with `npm ci` on a workstation. `npm install`
+        # resolves from the same pinned lock without that validation, and the step below
+        # fails loudly if it had to change anything.
+        run: npm install --no-audit --no-fund --prefer-offline
+
+      - name: install left the lockfile alone
+        run: git diff --exit-code -- package-lock.json
 
       - name: typecheck
         run: npm run typecheck
