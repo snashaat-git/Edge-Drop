@@ -1,0 +1,105 @@
+name: linux
+
+# The Windows release pipeline is not automated here; this job is the Linux gate:
+# typecheck, the unit suite against its Windows-only baseline, the X11 smoke
+# suite on Xvfb, then the AppImage/deb build with the packaged payload run
+# through one smoke case.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: linux-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: system deps for the X11 harness
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            xvfb x11-apps x11-utils xclip xterm ffmpeg imagemagick \
+            python3-pil fonts-dejavu-core libnss3 libatk1.0-0 libatk-bridge2.0-0 \
+            libgtk-3-0 libgbm1 libasound2t64
+          # The nopaste case asserts that no keystroke injector is installed, so
+          # the runner image must not silently provide one.
+          sudo apt-get remove -y --purge xdotool ydotool || true
+          command -v xdotool >/dev/null && { echo "xdotool still on PATH"; exit 1; } || \
+            echo "no paste injector on PATH (expected)"
+
+      - name: install
+        run: npm ci
+
+      - name: typecheck
+        run: npm run typecheck
+
+      - name: unit tests
+        run: scripts/ci-vitest-gate.sh
+
+      - name: build
+        run: npm run build
+
+      - name: X11 smoke suite
+        run: |
+          set -u
+          failed=0
+          for case in text image files filesout paste nopaste focus wayland hotkey; do
+            printf '%-9s ' "$case"
+            if out=$(timeout 180 scripts/linux-smoke.sh "$case" 2>&1); then
+              printf '%s\n' "$out" | grep -E '^RESULT' | tail -1
+            else
+              printf '%s\n' "$out" | grep -E '^RESULT' | tail -1
+              printf '%s\n' "$out" | tail -25
+              failed=1
+            fi
+          done
+          exit $failed
+
+      - name: package AppImage and deb
+        run: npx electron-builder --linux AppImage deb --publish never
+
+      - name: packaged payload still captures a clipboard item
+        run: |
+          set -e
+          dpkg-deb -I dist/*.deb | grep -E 'Package:|Section:|Depends:' || true
+          rm -rf /tmp/payload && dpkg-deb -x dist/*.deb /tmp/payload
+          EDGE_DROP_BIN=/tmp/payload/opt/Edge-Drop/edge-drop \
+            EDGE_DROP_BIN_ARGS=--no-sandbox \
+            timeout 180 scripts/linux-smoke.sh text
+
+      - name: packaged build disables the Windows update feed
+        run: |
+          set -e
+          grep -q "Linux build — no Linux update feed yet" /tmp/edge-drop-smoke.log
+          ! grep -q "latest-linux.yml" /tmp/edge-drop-smoke.log
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: linux-smoke-artifacts
+          path: |
+            /tmp/edge-drop-*.png
+            /tmp/edge-drop-*.log
+            /tmp/edge-drop-uri-out.txt
+          if-no-files-found: ignore
+
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: linux-packages
+          path: |
+            dist/*.AppImage
+            dist/*.deb

@@ -169,6 +169,25 @@ Packaging caveats to settle before publishing a release:
   `unsquashfs -o <offset> -d <dir> <appimage>`, and run `<dir>/AppRun`. `--appimage-extract-and-run` also
   goes through the hijacked binfmt here.
 
+## Phase 6 — CI and release
+
+- `.github/workflows/linux.yml` (runner `ubuntu-24.04`): system deps, `npm ci`, typecheck, the vitest gate,
+  build, the 9-case X11 suite, `electron-builder --linux AppImage deb --publish never`, then the packaged deb
+  payload put through the `text` case and the updater-gate assertions. Uploads the smoke artifacts always and
+  the packages on success.
+- `scripts/ci-vitest-gate.sh` turns the suite into a gate that tolerates the four Windows-only baseline
+  failures and fails when the count grows or the passing count drops — the alternative, `continue-on-error`,
+  would hide real regressions.
+- The job purges `xdotool`/`ydotool` before the suite: the `nopaste` case asserts that no injector is
+  installed, and runner images do ship `xdotool`.
+- `notes/linux-release-checklist.md` — the pre-publish list, including the two items that block any archive
+  submission (placeholder maintainer address, 256px icon) and the decision not to upload `latest-linux.yml`
+  while the Linux updater is off.
+
+Each step's command was run locally before the workflow was committed (vitest gate PASS with
+`4 failed | 900 passed`, the smoke loop shape, the packaged-payload case, both updater assertions). The
+runner environment itself is the one thing CI alone can prove.
+
 ## Known gaps to close (see the plan)
 
 - Launch-at-login is covered on Linux by `electron/main/autostartLinux.ts`; the remaining Windows-only paths
