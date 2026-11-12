@@ -42,9 +42,21 @@ those suites (`it.skipIf(process.platform !== 'win32')`).
 
 Suite after Phase 1: `910 tests, 887 passed, 11 failed (baseline set), 12 skipped`.
 
+## After Phase 2 (clipboard out + paste)
+
+| Case | Result |
+|---|---|
+| `filesout` | PASS — clicking a file card puts `file:///tmp/probe.png` on the X11 clipboard as `text/uri-list` |
+| `paste` | PASS — clicking a card logs `[Paste] keystroke injector: xdotool` and the stub receives `key --clearmodifiers ctrl+v` |
+| `nopaste` | PASS — with no injector installed the app logs `injector: none`, still writes the clipboard (hitCount ++), shows `toast.pasteFallback`, no crash |
+
+Not done in Phase 2: the Settings row from the plan (Task 2.3). The existing
+`toast.pasteFallback` already tells the user "Clipboard ready — click your app and press Ctrl+V", which is the
+correct message for the copy-only path, so a permanent warning row would be noise for people who never wanted
+auto-paste. Revisit if someone reports confusion.
+
 ## Known gaps to close (see the plan)
 
-- Paste gesture is a no-op: `simulatePaste()` body is entirely `if (process.platform === 'win32')`.
 - Launch at login is a no-op: `app.setLoginItemSettings` is `@platform darwin,win32` (electron.d.ts:1951).
 - Fullscreen suppression is Windows-only (`SHQueryUserNotificationState`) — shelf will pop over fullscreen apps.
 - Privacy-exclusion clipboard formats (`CanIncludeInClipboardHistory`, KDE `x-kde-passwordManagerHint`) are
