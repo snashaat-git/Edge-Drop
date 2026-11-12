@@ -24,7 +24,11 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          # Node 24 / npm 11 on purpose: that is the toolchain the lockfile was
+          # regenerated and verified with. npm 10 rejects this tree on the runner
+          # ("Missing: electron-builder-squirrel-windows…") because electron-builder
+          # ships Windows-only subtrees that a Linux-generated lock omits.
+          node-version: 24
           cache: npm
 
       - name: system deps for the X11 harness
