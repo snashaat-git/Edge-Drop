@@ -91,6 +91,36 @@ because the hover state machine sees the cursor outside, or it never paints from
 itself is registered and delivered; whether the panel should stay up until the user clicks elsewhere is a
 product decision that needs a session with a real WM.
 
+## Real desktop (GNOME/mutter, X11 session, three 4K displays)
+
+Run with `DISPLAY=:1 scripts/real-desktop-check.sh all`; it needs a live session with a WM and refuses to run
+under Xvfb. Session measured: `DisplayPort-2 3840x2160+0+0`, `DisplayPort-1 primary 3840x2160+3840+0`,
+`HDMI-A-0 3840x2160+7680+0`, GNOME top bar 34px, `_NET_WORKAREA 0,34,11520,2059`.
+
+| Check | Result |
+|---|---|
+| geometry | PASS — shelf at `416x2062+3838+34`: on the primary display, starting exactly at the work-area top, so it never covers the GNOME top bar |
+| edges | PASS — `stickPosition: left` → x=3838 (2px left of the display origin), `right` → x=7271, i.e. 7px past the display edge onto the neighbouring monitor |
+| focus (real WM) | PASS — decoy xterm focused through mutter's own click-to-focus, card clicked (paste confirmed in the log), `_NET_ACTIVE_WINDOW` stayed on the decoy |
+| hotkey | PASS with a caveat, see below |
+
+Findings worth keeping:
+
+- **Work-area source.** `_NET_WORKAREA` says the work area is 2059px tall, Electron reports 2062px, and the shelf
+  follows Electron (it draws 1-3px past the EWMH bottom edge). Electron is the value the app positions against,
+  and the top edge — the one that matters for a top bar — is exact.
+- **Right-edge overhang.** Docked right, the window ends 7px onto the next display. Left is 2px the other way.
+  Cosmetic on a multi-monitor desk, and panel-gutter related (`PANEL_WIDTH` 384 vs a 416px window), but it is a
+  real measured asymmetry rather than rounding noise.
+- **Alt+C: the first open of a session does not paint.** The shortcut registers, main sends `window:toggle`, and
+  the renderer confirms within 250 ms (`interactive=true`) — yet nothing is drawn: 142 changed pixels against a
+  closed baseline, versus ~203000 when it works. It is not a hydration race: a single press 10 s after launch
+  behaves the same. After the panel has been opened once through the hover path, Alt+C paints on the first press
+  every time. So the hotkey wiring is correct and the defect is in the panel's first render/compositing, which is
+  upstream renderer code, not the platform layer. The check asserts the warm path and records the cold one.
+- `backgroundThrottling: false` was added to the BrowserWindow along the way (a never-focused, always-on-top
+  window is exactly what Chromium throttles). It did not, by itself, fix the cold-start paint.
+
 ## Known gaps to close (see the plan)
 
 - Launch-at-login is covered on Linux by `electron/main/autostartLinux.ts`; the remaining Windows-only paths
