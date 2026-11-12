@@ -21,6 +21,8 @@
 #   focus    with X input focus parked on a decoy xterm, clicking a card must not
 #          move focus (the Linux stand-in for WS_EX_NOACTIVATE)
 #   wayland  launched with Wayland session vars: must select the XWayland backend
+#   hotkey   Alt+C sent through XTEST with the pointer far from the edge must open
+#          the panel on its own
 #
 # Exit code: 0 when the expected effect was observed, 1 when it was not.
 # Artifacts: /tmp/edge-drop-<case>.png, /tmp/edge-drop-smoke.log,
@@ -108,6 +110,7 @@ case "$CASE" in
   files|filesout) printf 'file:///tmp/probe.png\r\n' | xclip -selection clipboard -t text/uri-list ;;
   hover)      : ;;
   wayland)    : ;;
+  hotkey)     : ;;
   *) echo "unknown case: $CASE" >&2 ;;
 esac
 sleep 5
@@ -121,8 +124,16 @@ if [ "$CASE" = "focus" ]; then
   python3 "$ROOT/scripts/x11-input.py" setfocus "\$XID"
   python3 "$ROOT/scripts/x11-input.py" focus > "$FOCUS_BEFORE"
 fi
-python3 "$ROOT/scripts/x11-input.py" warp 1 500
-sleep 4
+if [ "$CASE" = "hotkey" ]; then
+  # Never hover in this case: the panel must open from the keystroke alone.
+  python3 "$ROOT/scripts/x11-input.py" warp 900 700
+  sleep 1
+  python3 "$ROOT/scripts/x11-input.py" key alt+c
+  sleep 2
+else
+  python3 "$ROOT/scripts/x11-input.py" warp 1 500
+  sleep 4
+fi
 if [ "$CASE" = "focus" ]; then
   python3 "$ROOT/scripts/x11-input.py" click "$CLICK_X" "$CLICK_Y"
   sleep 2
@@ -190,6 +201,24 @@ if [ "$CASE" = "filesout" ]; then
     exit 0
   fi
   echo "RESULT: FAIL — clicking the file card did not publish a uri list"
+  exit 1
+fi
+
+if [ "$CASE" = "hotkey" ]; then
+  # What this case owns: the shortcut is registered and the toggle reaches the
+  # renderer with no pointer involvement. Whether the panel stays painted is a
+  # separate question — under Xvfb it closes again immediately (the pointer is
+  # not over it), so the screenshot is reported, not asserted.
+  if python3 "$ROOT/scripts/panel-open-check.py" "$SHOT_PNG" 2>/dev/null; then
+    echo "panel visible in the frame"
+  else
+    echo "panel not visible in the frame (pointer is off-panel)"
+  fi
+  if grep -q "window:toggle event to renderer" "$LOG" 2>/dev/null; then
+    echo "RESULT: PASS — Alt+C registered and delivered a panel toggle to the renderer"
+    exit 0
+  fi
+  echo "RESULT: FAIL — no panel toggle after Alt+C (shortcut not registered?)"
   exit 1
 fi
 

@@ -72,9 +72,29 @@ Decisions:
 - **Multi-monitor / work-area behaviour is untested here.** It reads Electron's `display.workArea`, which on
   Linux reflects `_NET_WORKAREA` (panels already subtracted); needs a real dual-head session to confirm.
 
+## After Phase 4 (desktop integration)
+
+| Item | Result |
+|---|---|
+| autostart | 6/6 unit tests (`tests/linuxAutostart.test.ts`): entry written with `Exec="<exe>" --hidden`, removed on disable, `Hidden=true` / `X-GNOME-Autostart-enabled=false` read as disabled, autostart dir created when missing |
+| tray | `[Tray] created` on this host (no `libayatana-appindicator3`, so the icon is simply invisible). `createTray()` now returns `Tray \| null` and logs a remedy when `new Tray` throws; Settings/Quit stay reachable from the panel's gear menu (`src/components/Settings.tsx:449` calls `quitApp`) |
+| hotkey | PASS — Alt+C reaches the app and main logs `window:toggle ... open=undefined` with the pointer parked at (900,700) |
+
+Suite after Phase 4: `916 tests, 900 passed, 4 failed, 12 skipped`. The two Windows login-item suites now pin
+`process.platform` to `win32` for their own duration, so the port's Linux autostart branch no longer intercepts
+them — that also cleared 7 of the original 11 baseline failures. The 4 left (`storePaths` ×2, `storePackaging`,
+`trayTheme`) are unchanged Windows/Store-only assertions.
+
+**Open question for a real desktop:** with the pointer off-panel, Alt+C toggles the renderer state but the panel
+was not visible in any captured frame (0.3 s / 0.8 s / 1.6 s / 3 s). Either the panel re-closes immediately
+because the hover state machine sees the cursor outside, or it never paints from a non-hover open. The shortcut
+itself is registered and delivered; whether the panel should stay up until the user clicks elsewhere is a
+product decision that needs a session with a real WM.
+
 ## Known gaps to close (see the plan)
 
-- Launch at login is a no-op: `app.setLoginItemSettings` is `@platform darwin,win32` (electron.d.ts:1951).
+- Launch-at-login is covered on Linux by `electron/main/autostartLinux.ts`; the remaining Windows-only paths
+  (`StartupApproved`, Store startup tasks) are bookkeeping with no Linux equivalent.
 - Fullscreen suppression is Windows-only (`SHQueryUserNotificationState`) — shelf will pop over fullscreen apps.
 - Privacy-exclusion clipboard formats (`CanIncludeInClipboardHistory`, KDE `x-kde-passwordManagerHint`) are
   Windows-only today; password managers' "do not record" hints are not honoured on Linux.

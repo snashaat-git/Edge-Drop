@@ -5,6 +5,7 @@
     scripts/x11-input.py click 130 400        # move, then press+release button 1
     scripts/x11-input.py focus                # print the focused window id
     scripts/x11-input.py setfocus 0x1e00004   # focus a window explicitly
+    scripts/x11-input.py key alt+c            # press a chord (modifiers held)
 
 Uses libX11 for the warp/focus calls and XTEST (libXtst) for the click, so it
 works with no xdotool/xte/xwit installed on the box.
@@ -92,6 +93,44 @@ def main() -> int:
         x11.XSetInputFocus(dpy, win, 2, 0)
         x11.XFlush(dpy)
         print(f"focused 0x{win:x}")
+
+    elif action == "key":
+        if len(sys.argv) != 3:
+            print(__doc__, file=sys.stderr)
+            return 2
+        combo = sys.argv[2].split("+")
+        x11.XStringToKeysym.restype = ctypes.c_ulong
+        x11.XStringToKeysym.argtypes = [ctypes.c_char_p]
+        x11.XKeysymToKeycode.restype = ctypes.c_ubyte
+        x11.XKeysymToKeycode.argtypes = [ctypes.c_void_p, ctypes.c_ulong]
+        xtst = _lib("Xtst")
+        xtst.XTestFakeKeyEvent.argtypes = [
+            ctypes.c_void_p, ctypes.c_uint, ctypes.c_int, ctypes.c_ulong,
+        ]
+
+        special = {"alt": "Alt_L", "ctrl": "Control_L", "control": "Control_L", "shift": "Shift_L", "super": "Super_L"}
+        codes: list[int] = []
+        for part in combo:
+            name = special.get(part.lower(), part)
+            keysym = x11.XStringToKeysym(name.encode())
+            if not keysym:
+                print(f"unknown key: {part}", file=sys.stderr)
+                return 2
+            code = x11.XKeysymToKeycode(dpy, keysym)
+            if not code:
+                print(f"no keycode for: {part}", file=sys.stderr)
+                return 2
+            codes.append(code)
+
+        for code in codes:                      # press modifiers, then the key
+            xtst.XTestFakeKeyEvent(dpy, code, True, 0)
+            x11.XFlush(dpy)
+            time.sleep(0.03)
+        for code in reversed(codes):            # release in reverse order
+            xtst.XTestFakeKeyEvent(dpy, code, False, 0)
+            x11.XFlush(dpy)
+            time.sleep(0.03)
+        print(f"key {sys.argv[2]}")
 
     else:
         print(f"unknown action: {action}", file=sys.stderr)
