@@ -121,6 +121,54 @@ Findings worth keeping:
 - `backgroundThrottling: false` was added to the BrowserWindow along the way (a never-focused, always-on-top
   window is exactly what Chromium throttles). It did not, by itself, fix the cold-start paint.
 
+## Phase 5 — Linux packages
+
+`npm run build:linux` (`electron-vite build && electron-builder --linux AppImage deb`) produces:
+
+| Artifact | Size | Notes |
+|---|---|---|
+| `dist/Edge-Drop-0.4.0-x86_64.AppImage` | 142 MB | self-contained; desktop entry `Exec=AppRun --no-sandbox %U` |
+| `dist/Edge-Drop-0.4.0-amd64.deb` | 117 MB | installs to `/opt/Edge-Drop`, `Section: utils`, `Installed-Size: 305640` kB |
+
+Config added to `package.json`:
+
+- `linux`: AppImage + deb (x64), `category: Utility`, `executableName: edge-drop`,
+  `artifactName: Edge-Drop-${version}-${arch}.${ext}`, desktop entry with
+  `StartupWMClass=edge-drop` (the WM_CLASS the window actually reports).
+- `desktopName: "edge-drop.desktop"` + `linux.syncDesktopName` — without it electron-builder warns that
+  launchers cannot link a running window to the installed entry.
+- `deb`: `packageCategory: "utils"` (in electron-builder 26 the Debian Section is `packageCategory`; a
+  `section` key fails the config schema), `priority: optional`, and the dependency list pinned with a comment
+  explaining `libxtst6` (XTEST: pointer warp and the paste keystroke).
+- `electron/main/updater.ts`: the auto-updater returns early on Linux. The published feed is the Windows
+  release (nsis/appx + `latest.yml`); before this guard a packaged Linux build fetched
+  `latest-linux.yml` and logged `404` on every launch.
+
+Verification (packaged payloads, driven by the same harness as the dev tree):
+
+- deb payload — 9/9 cases PASS (`text image files filesout paste nopaste focus wayland hotkey`)
+- AppImage payload — `text filesout paste` PASS
+- both log `[AutoUpdater] Linux build — no Linux update feed yet, auto-updater disabled.` and make no
+  update request
+- `dpkg-deb -c` shows `/usr/share/applications/edge-drop.desktop`,
+  `/usr/share/icons/hicolor/256x256/apps/edge-drop.png`, `/usr/bin/edge-drop` via update-alternatives in
+  postinst, and the postinst only sets `chrome-sandbox` SUID when the system lacks user namespaces
+
+Packaging caveats to settle before publishing a release:
+
+- **Icon is 256×256** (`resources/icon.png`); electron-builder emits only
+  `hicolor/256x256/apps/edge-drop.png`. Supply ≥512×512 (ideally 1024) art for HiDPI launchers.
+- **`maintainer` is a placeholder** (`noreply@edge-drop.invalid`), as is the `Homepage` pointing at the fork.
+  A real address is required before any archive or distro submission.
+- **AppImage runs with `--no-sandbox`** in its desktop entry (electron-builder default, because
+  `chrome-sandbox` cannot be SUID inside an AppImage). The deb keeps the sandbox and only escalates
+  `chrome-sandbox` when needed.
+- **AppImageLauncher hijacks AppImages on this host** (binfmt): executing the file opens its integration
+  dialog instead of the app. For automated runs, get the payload offset with
+  `binfmt-bypass <appimage> --appimage-offset`, extract with
+  `unsquashfs -o <offset> -d <dir> <appimage>`, and run `<dir>/AppRun`. `--appimage-extract-and-run` also
+  goes through the hijacked binfmt here.
+
 ## Known gaps to close (see the plan)
 
 - Launch-at-login is covered on Linux by `electron/main/autostartLinux.ts`; the remaining Windows-only paths

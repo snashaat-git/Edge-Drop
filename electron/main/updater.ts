@@ -259,6 +259,15 @@ export function initAutoUpdater(): void {
     return
   }
 
+  // The published feed is the GitHub releases of the Windows build (nsis + appx
+  // artifacts with a latest.yml). electron-updater would happily fetch that
+  // metadata on Linux and offer a .exe, so the updater is off here until a Linux
+  // release channel exists.
+  if (process.platform === 'linux') {
+    console.log('[AutoUpdater] Linux build — no Linux update feed yet, auto-updater disabled.')
+    return
+  }
+
   try {
     const { autoUpdater } = require('electron-updater')
     _autoUpdater = autoUpdater

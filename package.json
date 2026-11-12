@@ -1,7 +1,7 @@
 {
   "name": "edge-drop",
   "version": "0.4.0",
-  "description": "Edge-Drop — a clipboard manager that lives on the left edge of your screen and expands on hover.",
+  "description": "Edge-Drop \u2014 a clipboard manager that lives on the left edge of your screen and expands on hover.",
   "author": "Edge-Drop",
   "license": "Apache-2.0",
   "private": true,
@@ -20,7 +20,8 @@
     "typecheck:web": "tsc --noEmit -p tsconfig.web.json --composite false",
     "typecheck": "npm run typecheck:node && npm run typecheck:web",
     "test": "vitest run",
-    "postinstall": "install-electron"
+    "postinstall": "install-electron",
+    "build:linux": "npm run build && electron-builder --linux AppImage deb"
   },
   "build": {
     "appId": "com.edgedrop.app",
@@ -106,6 +107,53 @@
         "internetClient"
       ],
       "customExtensionsPath": "resources/appx/startup-extensions.xml"
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "deb",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "category": "Utility",
+      "icon": "resources/icon.png",
+      "executableName": "edge-drop",
+      "maintainer": "Edge-Drop <noreply@edge-drop.invalid>",
+      "synopsis": "Clipboard shelf on the edge of your screen",
+      "description": "A clipboard manager that lives on the edge of your screen and expands on hover.",
+      "artifactName": "Edge-Drop-${version}-${arch}.${ext}",
+      "desktop": {
+        "entry": {
+          "Name": "Edge-Drop",
+          "Comment": "Clipboard shelf on the edge of your screen",
+          "Keywords": "clipboard;history;paste;",
+          "StartupWMClass": "edge-drop"
+        }
+      },
+      "syncDesktopName": true
+    },
+    "deb": {
+      "packageCategory": "utils",
+      "priority": "optional",
+      "depends": [
+        "libgtk-3-0",
+        "libnotify4",
+        "libnss3",
+        "libxss1",
+        "libxtst6",
+        "xdg-utils",
+        "libatspi2.0-0",
+        "libuuid1",
+        "libsecret-1-0"
+      ]
     }
   },
   "devDependencies": {
@@ -137,5 +185,6 @@
     "koffi": "^3.1.2",
     "react": "^18.2.0",
     "zustand": "^4.5.2"
-  }
+  },
+  "desktopName": "edge-drop.desktop"
 }
