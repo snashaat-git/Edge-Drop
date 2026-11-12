@@ -121,6 +121,24 @@ export function readText(): string {
 }
 
 /**
+ * Plain text on any platform.
+ *
+ * On Windows the synchronous Win32 read above is authoritative: the watcher
+ * polls every 300 ms and an async read of a delay-rendered format restarts
+ * Explorer's rendering. Off Windows there is no synchronous clipboard at all —
+ * Electron's ClipboardItem API is the only way in — so the caller must await.
+ */
+export async function readTextAsync(): Promise<string> {
+  if (process.platform === 'win32') return readText()
+  try {
+    const blob = await clipboardEntry('text/plain')
+    return blob ? await blob.text() : ''
+  } catch {
+    return ''
+  }
+}
+
+/**
  * The kinds of data on the clipboard, as the old `availableFormats()` named
  * them on Windows: Chromium's MIME types only, never raw format names (it
  * never reported FileNameW or a privacy flag; those are read by name).

@@ -599,7 +599,7 @@ export async function readClipboard(): Promise<ItemData | null> {
   // Text first. Excel/Sheets copies of a large range put a huge CF_BITMAP of
   // the selection plus megabytes of CF_HTML. Decoding those on the UI thread
   // stalls the window; shipping the HTML through persist/IPC makes it jitter.
-  const rawText = clipboard.readText()
+  const rawText = await clipboard.readTextAsync()
   const trimmedText = rawText.trim()
   const heavyTable = isHeavyTabularText(rawText)
   const skipBitmap = rawText.includes('\t') || countNewlines(rawText, 2) >= 2
@@ -698,7 +698,7 @@ export async function clipboardSignature(): Promise<string> {
     return `${seqPrefix}files:${files.join('\n')}`
   }
 
-  const rawUntrimmed = clipboard.readText()
+  const rawUntrimmed = await clipboard.readTextAsync()
   // Spreadsheet copies carry a huge selection bitmap. Fingerprint the TSV
   // only — toBitmap() of a 1500-row range stalls the window.
   if (rawUntrimmed.includes('\t') || countNewlines(rawUntrimmed, 2) >= 2) {
