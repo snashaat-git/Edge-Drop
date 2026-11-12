@@ -1,4 +1,15 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+// This suite exercises the Windows Run-key path. Pin the platform so the port's
+// Linux autostart branch does not intercept it on a Linux dev box; on Windows
+// the pin is a no-op.
+const suitePlatform = process.platform
+if (suitePlatform !== 'win32') {
+  Object.defineProperty(process, 'platform', { value: 'win32', configurable: true })
+}
+afterAll(() => {
+  Object.defineProperty(process, 'platform', { value: suitePlatform, configurable: true })
+})
 
 const mocks = vi.hoisted(() => ({
   isPackaged: true,

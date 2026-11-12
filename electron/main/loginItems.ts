@@ -15,6 +15,7 @@ import { isStoreBuild } from './config'
 import { loadSettings, saveSettings } from '../store/settings'
 import type { Settings } from '../../shared/types'
 import { disable, enable, getStatus, StartupTaskState } from './storeStartup'
+import { linuxAutostartEnabled, setLinuxAutostart } from './autostartLinux'
 
 export { StartupTaskState }
 
@@ -231,6 +232,13 @@ function collectGithubLoginNames(exePath: string): Set<string> {
 export function readGithubLaunchAtLogin(): LaunchAtLoginResult {
   const exePath = app.getPath('exe')
 
+  // Linux: XDG autostart entry (see autostartLinux.ts). Electron's own
+  // getLoginItemSettings is a no-op here, so without this the toggle always
+  // reported "off" no matter what the session manager would do.
+  if (process.platform === 'linux') {
+    return { enabled: linuxAutostartEnabled(), blockedByUser: false, ok: true }
+  }
+
   // Windows NSIS / portable builds: Read registry directly as authoritative source.
   // Electron's getLoginItemSettings() fails to match paths containing spaces (e.g. "Renato Souza")
   // and quoted arguments, returning false negatives that cause UI toggles to flap OFF.
@@ -280,6 +288,12 @@ export function readGithubLaunchAtLogin(): LaunchAtLoginResult {
 }
 
 export function applyGithubLaunchAtLogin(wantLaunch: boolean): LaunchAtLoginResult {
+  // Linux: write or remove the XDG autostart entry and report what is on disk.
+  if (process.platform === 'linux') {
+    const ok = setLinuxAutostart(wantLaunch)
+    return { enabled: linuxAutostartEnabled(), blockedByUser: false, ok }
+  }
+
   const exePath = app.getPath('exe')
   const names = collectGithubLoginNames(exePath)
 

@@ -97,10 +97,30 @@ export function updateTrayIcon(): void {
   }
 }
 
-export function createTray(): Tray {
-  const image = getTrayImage()
-  tray = new Tray(image)
-  tray.setToolTip('Edge-Drop')
+/**
+ * Create the tray icon.
+ *
+ * Returns null when the desktop has no status-notifier host: on Linux that means
+ * a missing `libayatana-appindicator3` or a GNOME session without the
+ * AppIndicator extension, and `new Tray` throws. The rest of this module already
+ * null-guards `tray`, and Settings + Quit stay reachable from the panel's gear
+ * menu, so a missing tray degrades the app instead of taking it down at startup.
+ */
+export function createTray(): Tray | null {
+  let created: Tray
+  try {
+    created = new Tray(getTrayImage())
+  } catch (err) {
+    console.error(
+      '[Tray] unavailable — no status-notifier host (install libayatana-appindicator3-1, and on ' +
+        'GNOME enable the AppIndicator extension). Settings and Quit remain available from the panel.',
+      err
+    )
+    return null
+  }
+  tray = created
+  console.log('[Tray] created')
+  created.setToolTip('Edge-Drop')
 
   // Register system theme change listener once
   if (!themeListenerRegistered) {
@@ -247,7 +267,7 @@ function getTrayText(settingsLang: string | undefined, key: keyof typeof en['tra
     tray?.setContextMenu(menu)
   }
 
-  tray.on('click', () => {
+  created.on('click', () => {
     updateTrayIcon()
     console.log('[Main] Tray icon left-clicked')
     const win = getMainWindow()
@@ -257,7 +277,7 @@ function getTrayText(settingsLang: string | undefined, key: keyof typeof en['tra
   })
 
   // Rebuild menu dynamically right before showing to ensure displays & checkmarks are 100% current.
-  tray.on('right-click', () => {
+  created.on('right-click', () => {
     updateTrayIcon()
     rebuild()
     tray?.popUpContextMenu()
@@ -274,7 +294,7 @@ function getTrayText(settingsLang: string | undefined, key: keyof typeof en['tra
 
   trayMenuRebuilder = rebuild
   rebuild()
-  return tray
+  return created
 }
 
 let screenListenersRegistered = false

@@ -61,6 +61,11 @@ if (process.platform === 'linux') {
   if (waylandSession && !nativeWaylandRequested) {
     app.commandLine.appendSwitch('ozone-platform', 'x11')
   }
+  if (waylandSession && nativeWaylandRequested) {
+    // Native Wayland has no client-side global hotkeys; the desktop's
+    // XDG Shortcuts portal is what Alt+C has to go through.
+    app.commandLine.appendSwitch('enable-features', 'GlobalShortcutsPortal')
+  }
   console.log(
     `[Main] linux session=${process.env.XDG_SESSION_TYPE ?? 'unknown'}` +
       ` (${waylandSession ? 'wayland' : 'x11'}) ` +
@@ -369,14 +374,26 @@ export function registerGlobalHotkey(targetHotkey?: string): boolean {
 
     if (!success && hotkey !== 'Alt+C') {
       console.warn(`[Main] Failed to register global shortcut ${hotkey}, falling back to Alt+C`)
-      globalShortcut.register('Alt+C', () => {
+      const fallback = globalShortcut.register('Alt+C', () => {
         if (runtime.quitting) return
         const now = Date.now()
         if (now - _lastHotkeyToggleTime < 500) return
         _lastHotkeyToggleTime = now
         pushState.togglePanel()
       })
+      if (!fallback) {
+        console.warn(
+          '[Main] Could not register Alt+C either — another application holds it, or this ' +
+            'session does not allow global shortcuts. The panel still opens on hover.'
+        )
+      }
       return false
+    }
+    if (!success) {
+      console.warn(
+        `[Main] Could not register the global shortcut ${hotkey} — another application may hold it. ` +
+          'The panel still opens on hover.'
+      )
     }
     return success
   } catch (err) {
