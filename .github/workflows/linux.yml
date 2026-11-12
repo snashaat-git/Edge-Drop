@@ -44,14 +44,17 @@ jobs:
           command -v xdotool >/dev/null && { echo "xdotool still on PATH"; exit 1; } || \
             echo "no paste injector on PATH (expected)"
 
+      - name: pin npm
+        # The lock is generated and verified with npm 11.16; the npm bundled with
+        # node 24 (11.6) validates electron-builder's Windows-only peer subtrees
+        # strictly and rejects this lock with "Missing: electron-winstaller…".
+        # Pin the toolchain instead of loosening the workflow.
+        run: |
+          npm install -g npm@11.16.0
+          npm --version
+
       - name: install
-        # `npm ci` refuses this tree on the runner: it wants electron-builder's
-        # Windows-only subtrees (electron-builder-squirrel-windows, electron-winstaller,
-        # postject) recorded in the lock, and a lock generated on Linux does not contain
-        # them — the same lock installs fine with `npm ci` on a workstation. `npm install`
-        # resolves from the same pinned lock without that validation, and the step below
-        # fails loudly if it had to change anything.
-        run: npm install --no-audit --no-fund --prefer-offline
+        run: npm ci --no-audit --no-fund
 
       - name: install left the lockfile alone
         run: git diff --exit-code -- package-lock.json
