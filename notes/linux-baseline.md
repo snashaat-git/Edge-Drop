@@ -55,6 +55,23 @@ Not done in Phase 2: the Settings row from the plan (Task 2.3). The existing
 correct message for the copy-only path, so a permanent warning row would be noise for people who never wanted
 auto-paste. Revisit if someone reports confusion.
 
+## After Phase 3 (window / session behaviour)
+
+| Case | Result |
+|---|---|
+| `focus` | PASS — X input focus parked on a decoy xterm (`0xc0000c`); clicking a card pasted and left focus at `0xc0000c` |
+| `wayland` | PASS — with `XDG_SESSION_TYPE=wayland`, startup logs `session=wayland (wayland) ozone=x11 (XWayland)` and the app renders |
+| opt-out | PASS — same env plus `EDGE_DROP_NATIVE_WAYLAND=1` logs `ozone=native` |
+
+Decisions:
+- **Wayland → XWayland by default.** `electron/main/index.ts` appends `ozone-platform=x11` on a Wayland
+  session unless `EDGE_DROP_NATIVE_WAYLAND=1`. The shelf cannot position itself on native Wayland.
+- **Fullscreen suppression stays Windows-only** (`electron/main/fullscreen.ts`), with a comment at the early
+  return. The shelf will pop over fullscreen video/games on Linux. Accepted for v1; the `xprop` approximation
+  is in the plan if it ever matters.
+- **Multi-monitor / work-area behaviour is untested here.** It reads Electron's `display.workArea`, which on
+  Linux reflects `_NET_WORKAREA` (panels already subtracted); needs a real dual-head session to confirm.
+
 ## Known gaps to close (see the plan)
 
 - Launch at login is a no-op: `app.setLoginItemSettings` is `@platform darwin,win32` (electron.d.ts:1951).

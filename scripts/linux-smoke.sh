@@ -18,6 +18,9 @@
 #          app's own detection + exec plumbing without installing xdotool.
 #   nopaste  same click with no injector installed: the app must fall back to
 #          copy-only instead of failing
+#   focus    with X input focus parked on a decoy xterm, clicking a card must not
+#          move focus (the Linux stand-in for WS_EX_NOACTIVATE)
+#   wayland  launched with Wayland session vars: must select the XWayland backend
 #
 # Exit code: 0 when the expected effect was observed, 1 when it was not.
 # Artifacts: /tmp/edge-drop-<case>.png, /tmp/edge-drop-smoke.log,
@@ -33,6 +36,8 @@ STORE="${HOME}/.config/edge-drop/items.json"
 LOG=/tmp/edge-drop-smoke.log
 PASTE_LOG=/tmp/edge-drop-paste.log
 URI_OUT=/tmp/edge-drop-uri-out.txt
+FOCUS_BEFORE=/tmp/edge-drop-focus-before.txt
+FOCUS_AFTER=/tmp/edge-drop-focus-after.txt
 SHOT_XWD="/tmp/edge-drop-${CASE}.xwd"
 SHOT_PNG="/tmp/edge-drop-${CASE}.png"
 CLICK_X="${CLICK_X:-130}"
@@ -43,6 +48,13 @@ if [ -n "$BIN" ]; then
   LAUNCH="$BIN ${EDGE_DROP_BIN_ARGS:-}"
 else
   LAUNCH="./node_modules/.bin/electron . --no-sandbox"
+fi
+
+# The wayland case pretends to be a Wayland session while still running on Xvfb,
+# which is exactly the XWayland situation: the app must ask for the x11 backend.
+LAUNCH_ENV=""
+if [ "$CASE" = "wayland" ]; then
+  LAUNCH_ENV="XDG_SESSION_TYPE=wayland WAYLAND_DISPLAY=wayland-0"
 fi
 
 # --- probe fixtures -------------------------------------------------------
@@ -72,7 +84,7 @@ printf '%s\n' "\$*" >> "$PASTE_LOG"
 STUB
   chmod +x "$FIXTURE/bin/xdotool"
 fi
-rm -f "$PASTE_LOG" "$URI_OUT"
+rm -f "$PASTE_LOG" "$URI_OUT" "$FOCUS_BEFORE" "$FOCUS_AFTER"
 
 command -v xclip >/dev/null || { echo "xclip missing: sudo apt install xclip"; rm -rf "$FIXTURE"; exit 1; }
 command -v xwd   >/dev/null || { echo "xwd missing: sudo apt install x11-apps"; rm -rf "$FIXTURE"; exit 1; }
@@ -86,20 +98,36 @@ set -u
 cd "$ROOT"
 # The paste case must see the stub injector, not the developer's real one.
 export PATH="$FIXTURE/bin:\$PATH"
-$LAUNCH > "$LOG" 2>&1 &
+$LAUNCH_ENV $LAUNCH > "$LOG" 2>&1 &
 APP=\$!
 # Let the app settle: first paint, store load, watcher seed.
 sleep 16
 case "$CASE" in
-  text|paste|nopaste) printf 'linux clipboard probe 12345' | xclip -selection clipboard ;;
+  text|paste|nopaste|focus) printf 'linux clipboard probe 12345' | xclip -selection clipboard ;;
   image)      xclip -selection clipboard -t image/png -i /tmp/probe.png ;;
   files|filesout) printf 'file:///tmp/probe.png\r\n' | xclip -selection clipboard -t text/uri-list ;;
   hover)      : ;;
+  wayland)    : ;;
   *) echo "unknown case: $CASE" >&2 ;;
 esac
 sleep 5
+if [ "$CASE" = "focus" ]; then
+  # Decoy window that legitimately owns the input focus. Xvfb has no window
+  # manager, so focus is assigned explicitly — what this proves is that the app
+  # itself never calls XSetInputFocus / never maps as focus-taking when clicked.
+  xterm -T edge-drop-focus-probe -geometry 60x18+700+320 -e sleep 900 &
+  sleep 3
+  XID=\$(xwininfo -root -tree | grep -m1 'edge-drop-focus-probe' | awk '{print \$1}')
+  python3 "$ROOT/scripts/x11-input.py" setfocus "\$XID"
+  python3 "$ROOT/scripts/x11-input.py" focus > "$FOCUS_BEFORE"
+fi
 python3 "$ROOT/scripts/x11-input.py" warp 1 500
 sleep 4
+if [ "$CASE" = "focus" ]; then
+  python3 "$ROOT/scripts/x11-input.py" click "$CLICK_X" "$CLICK_Y"
+  sleep 2
+  python3 "$ROOT/scripts/x11-input.py" focus > "$FOCUS_AFTER"
+fi
 if [ "$CASE" = "paste" ] || [ "$CASE" = "nopaste" ]; then
   python3 "$ROOT/scripts/x11-input.py" click "$CLICK_X" "$CLICK_Y"
   sleep 2
@@ -162,6 +190,33 @@ if [ "$CASE" = "filesout" ]; then
     exit 0
   fi
   echo "RESULT: FAIL — clicking the file card did not publish a uri list"
+  exit 1
+fi
+
+if [ "$CASE" = "wayland" ]; then
+  if grep -q "ozone=x11 (XWayland)" "$LOG" 2>/dev/null; then
+    echo "RESULT: PASS — wayland session detected, x11 (XWayland) backend requested"
+    exit 0
+  fi
+  echo "RESULT: FAIL — expected 'ozone=x11 (XWayland)' in the startup log"
+  exit 1
+fi
+
+if [ "$CASE" = "focus" ]; then
+  B="$(cat "$FOCUS_BEFORE" 2>/dev/null)"
+  A="$(cat "$FOCUS_AFTER" 2>/dev/null)"
+  echo "--- input focus ---"
+  echo "before=$B after=$A"
+  echo
+  if [ -n "$B" ] && [ "$B" = "$A" ] && grep -q "\[IPC\] item:paste" "$LOG" 2>/dev/null; then
+    echo "RESULT: PASS — clicking a card never moved X input focus"
+    exit 0
+  fi
+  if [ -z "$B" ]; then
+    echo "RESULT: FAIL — could not park focus on the decoy window (no WM in Xvfb?)"
+  else
+    echo "RESULT: FAIL — focus moved $B -> $A, or the click never reached a card"
+  fi
   exit 1
 fi
 
