@@ -33,12 +33,14 @@ those suites (`it.skipIf(process.platform !== 'win32')`).
 
 ## Runtime behaviour (Xvfb, `scripts/linux-smoke.sh`)
 
-| Case | State before the port |
-|---|---|
-| hover | PASS — pointer at x=1 opens the panel, x=800 closes it |
-| image | PASS — `items.json` gets `{"kind":"image","width":120,"height":80}` |
-| text | FAIL — store stays `{"items":[]}`; `osClipboard.readText()` returns `''` when the Win32 handle is null |
-| files | FAIL — `readFileListAsync()` gates on `readBuffer('FileNameW')`, empty off Windows |
+| Case | Before Phase 1 | After Phase 1 |
+|---|---|---|
+| hover | PASS — pointer at x=1 opens the panel, x=800 closes it | PASS |
+| image | PASS — `items.json` gets `{"kind":"image","width":120,"height":80}` | PASS |
+| text | FAIL — store stayed `{"items":[]}`; `osClipboard.readText()` returns `''` when the Win32 handle is null | **PASS** — `readTextAsync()` (commit `b658e24`) |
+| files | FAIL — `readFileListAsync()` gated on `readBuffer('FileNameW')`, empty off Windows | **PASS** — `readUriListPaths()` (commit `cc1f69b`) |
+
+Suite after Phase 1: `910 tests, 887 passed, 11 failed (baseline set), 12 skipped`.
 
 ## Known gaps to close (see the plan)
 
