@@ -357,6 +357,17 @@ void setInteractive
 
 let _lastHotkeyToggleTime = 0
 
+/**
+ * Toggle the shelf from the global shortcut.
+ *
+ * Sends the intended state instead of a blind toggle: main tracks the panel's
+ * openness through the renderer's setInteractive calls, so a press that lands
+ * while the renderer is still hydrating cannot invert the panel.
+ */
+function togglePanelFromShortcut(): void {
+  pushState.togglePanel(!isInteractive())
+}
+
 export function registerGlobalHotkey(targetHotkey?: string): boolean {
   try {
     const { globalShortcut } = require('electron')
@@ -369,7 +380,9 @@ export function registerGlobalHotkey(targetHotkey?: string): boolean {
       const now = Date.now()
       if (now - _lastHotkeyToggleTime < 500) return
       _lastHotkeyToggleTime = now
-      pushState.togglePanel()
+      // Send the intended state, not a blind toggle, and re-assert it while the
+      // renderer may still be hydrating (see togglePanelFromShortcut).
+      togglePanelFromShortcut()
     })
 
     if (!success && hotkey !== 'Alt+C') {
@@ -379,7 +392,7 @@ export function registerGlobalHotkey(targetHotkey?: string): boolean {
         const now = Date.now()
         if (now - _lastHotkeyToggleTime < 500) return
         _lastHotkeyToggleTime = now
-        pushState.togglePanel()
+        togglePanelFromShortcut()
       })
       if (!fallback) {
         console.warn(
@@ -394,6 +407,8 @@ export function registerGlobalHotkey(targetHotkey?: string): boolean {
         `[Main] Could not register the global shortcut ${hotkey} — another application may hold it. ` +
           'The panel still opens on hover.'
       )
+    } else {
+      console.log(`[Main] global shortcut ${hotkey} registered`)
     }
     return success
   } catch (err) {

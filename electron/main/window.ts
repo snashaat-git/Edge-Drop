@@ -802,7 +802,13 @@ export function createWindow(): BrowserWindow {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
-      spellcheck: false
+      spellcheck: false,
+      // The shelf window is never focused (focusable:false, WS_EX_NOACTIVATE on
+      // Windows), so Chromium treats it as a background window and throttles
+      // timers and frames. A shelf whose whole job is a 200ms slide-in should not
+      // be throttled. Note: this alone does NOT fix the "first open of a session
+      // from the hotkey does not paint" issue recorded in notes/linux-baseline.md.
+      backgroundThrottling: false
     }
   })
 
