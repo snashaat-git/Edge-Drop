@@ -171,22 +171,37 @@ Packaging caveats to settle before publishing a release:
 
 ## Phase 6 — CI and release
 
-- `.github/workflows/linux.yml` (runner `ubuntu-24.04`): system deps, `npm ci`, typecheck, the vitest gate,
-  build, the 9-case X11 suite, `electron-builder --linux AppImage deb --publish never`, then the packaged deb
-  payload put through the `text` case and the updater-gate assertions. Uploads the smoke artifacts always and
-  the packages on success.
-- `scripts/ci-vitest-gate.sh` turns the suite into a gate that tolerates the four Windows-only baseline
-  failures and fails when the count grows or the passing count drops — the alternative, `continue-on-error`,
-  would hide real regressions.
-- The job purges `xdotool`/`ydotool` before the suite: the `nopaste` case asserts that no injector is
-  installed, and runner images do ship `xdotool`.
-- `notes/linux-release-checklist.md` — the pre-publish list, including the two items that block any archive
+`.github/workflows/linux.yml` (runner `ubuntu-24.04`, node 24, npm pinned to 11.16.0) is green:
+7m03s for system deps, `npm ci`, typecheck, the unit gate, build, the 9-case X11 suite,
+`electron-builder --linux AppImage deb --publish never`, the packaged deb payload through the `text` case, and
+both updater-gate assertions.
+
+- `scripts/ci-vitest-gate.sh` turns the suite into a gate that tolerates the Windows-only baseline
+  (`4 failed | 900 passed`) and fails when the failure count grows or the passing count drops. `continue-on-error`
+  would make the suite decorative.
+- The job purges `xdotool`/`ydotool` first: the `nopaste` case asserts that no injector is installed, and
+  runner images do ship `xdotool`.
+- `notes/linux-release-checklist.md` — the pre-publish list, including the two items that block archive
   submission (placeholder maintainer address, 256px icon) and the decision not to upload `latest-linux.yml`
   while the Linux updater is off.
 
-Each step's command was run locally before the workflow was committed (vitest gate PASS with
-`4 failed | 900 passed`, the smoke loop shape, the packaged-payload case, both updater assertions). The
-runner environment itself is the one thing CI alone can prove.
+Getting it green cost four failed runs, each with a different cause — worth remembering:
+
+- **`npm ci` needs a lock with electron-builder's Windows-only subtrees in it.** A lock generated on Linux omits
+  `electron-builder-squirrel-windows`, `electron-winstaller`, `@electron/windows-sign` and `postject` (they are
+  os-gated optionals), and the runner rejects the tree with `Missing: electron-winstaller@5.4.0 from lock file`.
+  npm on the runner repairs it during `npm install`; that repaired file is now committed, and a workflow step
+  runs `git diff --exit-code -- package-lock.json` so an install that has to rewrite the lock fails the job.
+  Neither a cold npm cache nor pinning npm 11.16.0 locally reproduced the failure — the runner's view is what
+  matters, so the artifact round-trip was the only way to get the right file.
+- **The upstream lock was also missing vitest's nested esbuild subtree** (`Missing: @esbuild/linux-x64@0.28.2`),
+  which npm 11 tolerated and npm 10 did not; the regenerated lock resolves vitest 4.1.12 with rolldown-based
+  vite 8.3.8, so there is no esbuild subtree to miss.
+- **CI colourises the reporter output.** `CI=true` makes vitest emit ANSI codes even with stdout redirected, so
+  the gate's `^ +Tests` pattern never matched and reported "no summary" on a run that had a perfectly good
+  summary. The script now strips ANSI and forces `NO_COLOR`.
+- **One upstream test is timing-flaky** under load (the mocked release fetch on a 100ms clock); the gate retries
+  once, and a real regression still fails both attempts.
 
 ## Known gaps to close (see the plan)
 
