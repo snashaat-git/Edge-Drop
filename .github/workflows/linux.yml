@@ -54,10 +54,16 @@ jobs:
           npm --version
 
       - name: install
-        run: npm ci --no-audit --no-fund
+        run: npm install --no-audit --no-fund
 
-      - name: install left the lockfile alone
-        run: git diff --exit-code -- package-lock.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: runner-lock
+          path: package-lock.json
+
+      - name: TEMPORARY stop after lock capture
+        run: exit 1
 
       - name: typecheck
         run: npm run typecheck
