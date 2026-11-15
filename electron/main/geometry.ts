@@ -59,14 +59,72 @@ function boundsMatch(
   )
 }
 
-export function computeStickBounds(params: StickBoundsParams): StickBoundsResult {
-  const { position, displays, displayId, savedWorkArea, savedScaleFactor, windowWidth, currentBounds } = params
+/**
+ * Inputs that identify which display the user picked.
+ *
+ * Display identifiers are not guaranteed to be unique: on X11 Chromium derives
+ * `Display.id` from the monitor's EDID, so identical panels (same model, no
+ * serial advertised) report the SAME id. When that happens the id alone cannot
+ * pick the monitor, and whichever entry the array happens to list first wins —
+ * the reported bug "selecting a monitor in Settings does not move the shelf".
+ * Every resolution path therefore disambiguates colliding ids with the
+ * persisted workArea (the geometry of the entry the user actually clicked).
+ */
+export interface StickDisplayParams {
+  displays: DisplayInfo[]
+  displayId?: number
+  /** Persisted workArea geometry of the chosen display (preferred discriminator). */
+  savedWorkArea?: { x: number; y: number; width: number; height: number }
+  /** Persisted scale factor — secondary discriminator for identical-geometry monitors. */
+  savedScaleFactor?: number
+  /** Current window origin; enables Tier-3 nearest-display matching. */
+  currentBounds?: { x: number; y: number }
+  /** Set false to forbid Tier-3 (deterministic callers such as the display list). */
+  allowNearest?: boolean
+}
+
+/**
+ * Narrow a candidate set down to one display.
+ *
+ * Order of discrimination: persisted workArea → scale factor → OS primary →
+ * first candidate (deterministic array order). With a single candidate the
+ * first two steps are skipped, which is why this is also safe for Tier-2.
+ */
+function pickAmongCandidates(
+  candidates: DisplayInfo[],
+  savedWorkArea?: { x: number; y: number; width: number; height: number },
+  savedScaleFactor?: number
+): DisplayInfo | undefined {
+  if (candidates.length === 0) return undefined
+  let list = candidates
+  if (list.length > 1 && savedWorkArea) {
+    const byArea = list.filter(d => boundsMatch(d.workArea, savedWorkArea))
+    if (byArea.length) list = byArea
+  }
+  if (list.length > 1 && savedScaleFactor !== undefined) {
+    const byScale = list.filter(d => d.scaleFactor === savedScaleFactor)
+    if (byScale.length) list = byScale
+  }
+  if (list.length > 1) {
+    // Identical twins (same geometry AND scale): geometry is exhausted as a
+    // discriminator by definition, so anchor on the OS-designated primary -
+    // deterministic across reboots, independent of array order.
+    const primaryCandidate = list.find(d => d.isPrimary)
+    if (primaryCandidate) list = [primaryCandidate]
+  }
+  return list[0]
+}
+
+/** Resolve which display the shelf belongs on. Never returns undefined when `displays` is non-empty. */
+export function resolveStickDisplay(params: StickDisplayParams): DisplayInfo {
+  const { displays, displayId, savedWorkArea, savedScaleFactor, currentBounds, allowNearest } = params
 
   let display: DisplayInfo | undefined
 
-  // ── Tier 1: exact session-local numeric ID match (fast path within same session) ──
+  // ── Tier 1: session-local numeric ID match (fast path within same session) ──
+  // Duplicate ids are resolved by the persisted geometry, not by array order.
   if (displayId !== undefined) {
-    display = displays.find(d => d.id === displayId)
+    display = pickAmongCandidates(displays.filter(d => d.id === displayId), savedWorkArea, savedScaleFactor)
   }
 
   // ── Tier 2: cross-reboot fuzzy workArea match ──────────────────────────────────
@@ -75,35 +133,34 @@ export function computeStickBounds(params: StickBoundsParams): StickBoundsResult
   // geometry (within BOUNDS_TOLERANCE) and optionally the DPI scale factor as a
   // secondary discriminator when two monitors share the same resolution.
   if (!display && savedWorkArea) {
-    let candidates = displays.filter(d => boundsMatch(d.workArea, savedWorkArea))
-    if (candidates.length > 1 && savedScaleFactor !== undefined) {
-      const byScale = candidates.filter(d => d.scaleFactor === savedScaleFactor)
-      if (byScale.length) candidates = byScale
-    }
-    if (candidates.length > 1) {
-      // Identical twins (same geometry AND scale): geometry is exhausted as a
-      // discriminator by definition, so anchor on the OS-designated primary -
-      // deterministic across reboots, independent of array order.
-      const primaryCandidate = candidates.find(d => d.isPrimary)
-      if (primaryCandidate) candidates = [primaryCandidate]
-    }
-    if (candidates.length >= 1) {
-      // Only one unambiguous match, or the best-ranked twin.
-      display = candidates[0]
-    }
-    // If candidates.length === 0 the saved display is genuinely gone; fall through.
+    display = pickAmongCandidates(displays.filter(d => boundsMatch(d.workArea, savedWorkArea)), savedWorkArea, savedScaleFactor)
+    // If nothing matched the saved display is genuinely gone; fall through.
   }
 
   // ── Tier 3: nearest-by-current-window-position (session continuity, no saved data) ──
-  if (!display && displayId === undefined && currentBounds) {
-    const nearest = findNearestDisplay(displays, currentBounds)
-    if (nearest) display = nearest
+  if (!display && displayId === undefined && currentBounds && allowNearest !== false) {
+    display = findNearestDisplay(displays, currentBounds)
   }
 
   // ── Tier 4: primary display fallback ──────────────────────────────────────────
   if (!display) {
     display = displays.find(d => d.isPrimary) ?? displays[0]
   }
+
+  return display
+}
+
+export function computeStickBounds(params: StickBoundsParams): StickBoundsResult {
+  const { position, displays, displayId, savedWorkArea, savedScaleFactor, windowWidth, currentBounds } = params
+
+  const display = resolveStickDisplay({
+    displays,
+    displayId,
+    savedWorkArea,
+    savedScaleFactor,
+    currentBounds,
+    allowNearest: true
+  })
 
   const wa = display.workArea
 

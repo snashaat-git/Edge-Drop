@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { computeStickBounds, type DisplayInfo } from '../electron/main/geometry'
+import { computeStickBounds, resolveStickDisplay, type DisplayInfo } from '../electron/main/geometry'
 
 function makeDisplay(
   id: number, x: number, y: number, w: number, h: number,
@@ -120,6 +120,92 @@ describe('TV mirror regression � combined scenario', () => {
       windowWidth: 384
     })
     expect(r.displayId).toBe(11)
+  })
+})
+
+/**
+ * Real topology captured from this workstation (GNOME 46 / X11, three identical
+ * Samsung 4K panels): Chromium hashed two DIFFERENT monitors to the SAME
+ * `Display.id`. `find(d => d.id === chosenId)` then always returned whichever
+ * twin the array listed first, so picking the third monitor in Settings left
+ * the shelf on the second one — the reported bug.
+ */
+describe('duplicate display ids (twin monitors sharing one Electron id)', () => {
+  const TWIN_ID = 21442559853606490
+  const sub = makeDisplay(21442559853606484, 3614, 32, 3615, 1938, { isPrimary: true, scaleFactor: 1.0625 })
+  const twinLeft = makeDisplay(TWIN_ID, 0, 0, 3615, 2033, { scaleFactor: 1.0625 })
+  const twinRight = makeDisplay(TWIN_ID, 7228, 0, 3615, 2033, { scaleFactor: 1.0625 })
+  const savedOnRight = { x: 7228, y: 0, width: 3615, height: 2033 }
+
+  it('picks the twin whose saved workArea matches, not the first id match', () => {
+    const order = [[sub, twinLeft, twinRight], [sub, twinRight, twinLeft]]
+    for (const displays of order) {
+      const r = computeStickBounds({
+        position: 'left',
+        displays,
+        displayId: TWIN_ID,
+        savedWorkArea: savedOnRight,
+        savedScaleFactor: 1.0625,
+        windowWidth: 384
+      })
+      expect(r.x).toBe(7228)
+      expect(r.resolvedDisplay.workArea.x).toBe(7228)
+    }
+  })
+
+  it('stays put when the duplicated id is the one saved (no cross-monitor drift)', () => {
+    const onLeft = { x: 0, y: 0, width: 3615, height: 2033 }
+    const r = computeStickBounds({
+      position: 'right',
+      displays: [sub, twinRight, twinLeft],
+      displayId: TWIN_ID,
+      savedWorkArea: onLeft,
+      savedScaleFactor: 1.0625,
+      windowWidth: 384
+    })
+    // Right edge of the left twin: 0 + 3615 - 384
+    expect(r.x).toBe(3231)
+  })
+
+  it('resolves without saved geometry deterministically (array order, never a random twin)', () => {
+    const first = computeStickBounds({
+      position: 'left',
+      displays: [twinLeft, sub, twinRight],
+      displayId: TWIN_ID,
+      windowWidth: 384
+    })
+    expect(first.displayId).toBe(TWIN_ID)
+    expect(first.x).toBe(0)
+
+    const reordered = computeStickBounds({
+      position: 'left',
+      displays: [sub, twinRight, twinLeft],
+      displayId: TWIN_ID,
+      windowWidth: 384
+    })
+    expect(reordered.x).toBe(7228) // first candidate, regardless of id collisions
+  })
+
+  it('resolveStickDisplay returns the exact array member so callers can index it', () => {
+    const displays = [sub, twinLeft, twinRight]
+    const resolved = resolveStickDisplay({
+      displays,
+      displayId: TWIN_ID,
+      savedWorkArea: savedOnRight,
+      savedScaleFactor: 1.0625,
+      allowNearest: false
+    })
+    expect(displays.indexOf(resolved)).toBe(2)
+  })
+
+  it('falls back to the persisted workArea when the id matches no display', () => {
+    const resolved = resolveStickDisplay({
+      displays: [sub, twinLeft, twinRight],
+      displayId: 999, // stale id after the OS re-created the outputs
+      savedWorkArea: savedOnRight,
+      allowNearest: false
+    })
+    expect(resolved.workArea.x).toBe(7228)
   })
 })
 

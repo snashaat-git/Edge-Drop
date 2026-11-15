@@ -265,6 +265,36 @@ window with `xwininfo`: **384px at 100%, 480px at 125%** — exactly `PANEL_WIDT
 `[Window] UI zoom 1.25x` line. `tests/uiZoom.test.ts` covers the clamp/snap grid and that a 125% and a 150%
 shelf still fit inside the work area.
 
+### Duplicate display ids — "picking a monitor in Settings does not move the shelf"
+
+On this X11 host Chromium gives two *different* monitors the *same* `Display.id`
+(`21442559853606490`) because it derives the id from the panel's EDID and the three screens are
+identical Samsungs with no distinguishing serial. Resolution used to be
+`displays.find(d => d.id === settings.stickDisplayId)`, so the id match returned whichever twin the
+array listed first: the shelf stayed on the second monitor, both pills were flagged "current", and
+the selection looked ignored. Persisted `stickDisplayWorkArea` was already correct — it was simply
+never consulted when the id matched something.
+
+Resolution now lives in one place, `resolveStickDisplay()` in `electron/main/geometry.ts`: an id that
+matches several displays is narrowed by the persisted workArea, then scale factor, then OS primary.
+`computeStickBounds`, the work-area cache that feeds hover/edge detection, and the display list all
+use it, and the picker marks `isCurrent` on the resolved entry by index (comparing ids cannot
+distinguish twins). The picker and tray also round-trip the clicked entry's `workArea`/`scaleFactor`
+so `settings:update` cannot persist the first twin's geometry, and the Settings list is refetched
+after a switch so the active pill follows the shelf.
+
+Proof on the real desktop (three 4K panels at scale 1.0625, `stickDisplayId` = the duplicated id):
+
+| selection | window `x` (DIP) |
+|---|---|
+| left twin (workArea x=0) | 0 |
+| right twin (workArea x=7228) | 7227 |
+| primary (unique id, workArea x=3614) | 3613 |
+
+Same settings under the old build put the window at `x=0` regardless. Reading `window.edge.getDisplays()`
+in the live renderer shows exactly one `isCurrent: true` entry. `tests/geometry.test.ts`
+("duplicate display ids") pins the resolver against this captured topology.
+
 ## Known gaps to close (see the plan)
 
 - Launch-at-login is covered on Linux by `electron/main/autostartLinux.ts`; the remaining Windows-only paths

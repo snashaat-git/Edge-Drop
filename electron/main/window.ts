@@ -20,7 +20,7 @@ import { runtime } from './config'
 import { PATHS } from '../store/paths'
 import { TRANSLATIONS, en } from '../../src/i18n/translations'
 import { mainT, resolveLang } from './i18n'
-import { computeStickBounds } from './geometry'
+import { computeStickBounds, resolveStickDisplay, type DisplayInfo } from './geometry'
 import { isSafeExternalUrl } from './externalUrl'
 import { WorkAreaCache } from './workAreaCache'
 import { probeSeamAware, isNearProximity, type SeamTickState } from './stickProbe'
@@ -132,14 +132,49 @@ export let currentStickDisplayId: number | undefined
 let staleIdConsecutiveCount = 0
 
 /**
+ * Snapshot the OS display list in the shape geometry.ts understands.
+ *
+ * `id` is NOT unique on every platform (X11 Chromium hashes the EDID, and twin
+ * monitors of the same model with no serial report the same value), so callers
+ * must resolve through geometry.ts rather than `find(d => d.id === ...)`.
+ */
+function snapshotDisplays(): { infos: DisplayInfo[]; primaryId: number } {
+  const primary = screen.getPrimaryDisplay()
+  const infos = screen.getAllDisplays().map(d => ({
+    id: d.id,
+    workArea: { ...d.workArea },
+    scaleFactor: d.scaleFactor,
+    isPrimary: d.id === primary.id
+  }))
+  return { infos, primaryId: primary.id }
+}
+
+/** The display the shelf currently belongs on (duplicate-id safe). */
+function resolveCurrentStickDisplay(infos: DisplayInfo[], displayId?: number): DisplayInfo {
+  const settings = loadSettings()
+  return resolveStickDisplay({
+    displays: infos,
+    displayId: displayId ?? settings.stickDisplayId,
+    savedWorkArea: settings.stickDisplayWorkArea,
+    savedScaleFactor: settings.stickDisplayScaleFactor,
+    allowNearest: false
+  })
+}
+
+/**
  * Stick-display work area cache (versioned, last-known-good).
  * Rebuilds automatically when the stick display id changes - this is the fix
  * for "switched monitors in Settings but edge detection kept listening to
  * the old screen". See workAreaCache.ts for the full contract.
+ *
+ * The lookup resolves through geometry.ts instead of matching the id directly:
+ * twin monitors can share one id, and `find()` would then always hand back the
+ * first twin, leaving edge detection listening on the wrong screen.
  */
 const workAreaCache = new WorkAreaCache((displayId) => {
-  const all = screen.getAllDisplays()
-  const stick = all.find(d => d.id === displayId) ?? screen.getPrimaryDisplay()
+  const { infos } = snapshotDisplays()
+  if (infos.length === 0) return null
+  const stick = resolveCurrentStickDisplay(infos, displayId)
   return stick?.workArea ? { displayId: stick.id, workArea: stick.workArea } : null
 })
 
@@ -1021,40 +1056,27 @@ export function registerWindowRepositionListener(fn: () => void): void {
 
 export function getActiveDisplayId(allDisplays?: Electron.Display[]): number {
   const displays = allDisplays ?? screen.getAllDisplays()
+  if (displays.length === 0) return screen.getPrimaryDisplay().id
   const settings = loadSettings()
   const primary = screen.getPrimaryDisplay()
 
-  // Tier 1: exact session-local ID match.
-  if (settings.stickDisplayId !== undefined && displays.some(d => d.id === settings.stickDisplayId)) {
-    return settings.stickDisplayId
-  }
+  const infos: DisplayInfo[] = displays.map(d => ({
+    id: d.id,
+    workArea: { ...d.workArea },
+    scaleFactor: d.scaleFactor,
+    isPrimary: d.id === primary.id
+  }))
 
-  // Tier 2: fuzzy workArea match (cross-reboot).
-  if (settings.stickDisplayWorkArea !== undefined) {
-    const TOLERANCE = 8
-    const sa = settings.stickDisplayWorkArea
-    const candidates = displays.filter(d =>
-      Math.abs(d.workArea.x - sa.x) <= TOLERANCE &&
-      Math.abs(d.workArea.y - sa.y) <= TOLERANCE &&
-      Math.abs(d.workArea.width - sa.width) <= TOLERANCE &&
-      Math.abs(d.workArea.height - sa.height) <= TOLERANCE
-    )
-    if (candidates.length === 1) return candidates[0].id
-    if (candidates.length > 1 && settings.stickDisplayScaleFactor !== undefined) {
-      const byScale = candidates.find(d => d.scaleFactor === settings.stickDisplayScaleFactor)
-      if (byScale) return byScale.id
-      return candidates[0].id
-    }
-    if (candidates.length > 1) return candidates[0].id
-  }
-
-  // Tier 3: in-memory ID set this session by getStickGeometry.
-  if (currentStickDisplayId !== undefined && displays.some(d => d.id === currentStickDisplayId)) {
-    return currentStickDisplayId
-  }
-
-  // Tier 4: primary fallback.
-  return primary.id
+  // Tier 1 (id, duplicate-safe) → Tier 2 (persisted workArea) come from the
+  // shared resolver. Tier 3 keeps the session-local id getStickGeometry set.
+  const resolved = resolveStickDisplay({
+    displays: infos,
+    displayId: settings.stickDisplayId ?? currentStickDisplayId,
+    savedWorkArea: settings.stickDisplayWorkArea,
+    savedScaleFactor: settings.stickDisplayScaleFactor,
+    allowNearest: false
+  })
+  return resolved?.id ?? primary.id
 }
 
 export function getDisplayListOptions(): Array<{
@@ -1070,15 +1092,35 @@ export function getDisplayListOptions(): Array<{
 }> {
   const all = screen.getAllDisplays()
   const primary = screen.getPrimaryDisplay()
-  const activeId = getActiveDisplayId(all)
+  const settings = loadSettings()
 
-  const langCode = resolveLang(loadSettings().language)
+  const langCode = resolveLang(settings.language)
   const dict = TRANSLATIONS[langCode]
   const primaryText = dict?.position?.primaryDisplay || en.position.primaryDisplay
   // Localized side tags reuse the fully translated tray words; vertical
   // arrangements get no tag rather than inventing untranslated strings.
   const sideWord = (key: 'left' | 'right'): string =>
     (dict?.tray?.[key]) || en.tray[key] || key
+
+  // Resolve the stick display once and mark exactly that entry as current.
+  // Comparing ids entry-by-entry cannot work: twin monitors can share one id,
+  // which used to light up two pills at once and make a switch look ignored.
+  const infos: DisplayInfo[] = all.map(d => ({
+    id: d.id,
+    workArea: { ...d.workArea },
+    scaleFactor: d.scaleFactor,
+    isPrimary: d.id === primary.id
+  }))
+  const resolved = infos.length
+    ? resolveStickDisplay({
+      displays: infos,
+      displayId: settings.stickDisplayId ?? currentStickDisplayId,
+      savedWorkArea: settings.stickDisplayWorkArea,
+      savedScaleFactor: settings.stickDisplayScaleFactor,
+      allowNearest: false
+    })
+    : undefined
+  const activeIndex = resolved ? infos.indexOf(resolved) : -1
 
   return all.map((d, index) => {
     const isPrimary = d.id === primary.id
@@ -1111,7 +1153,7 @@ export function getDisplayListOptions(): Array<{
       workArea: { x: d.workArea.x, y: d.workArea.y, width: d.workArea.width, height: d.workArea.height },
       scaleFactor: scale,
       isPrimary,
-      isCurrent: d.id === activeId,
+      isCurrent: index === activeIndex,
       label: `${name}${positionTag} ${resolution}`,
       name,
       resolution

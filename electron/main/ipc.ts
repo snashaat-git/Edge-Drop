@@ -769,7 +769,19 @@ export function registerIpc(): void {
     let enrichedPatch = { ...patch }
     if (patch.stickDisplayId !== undefined) {
       const displays = getDisplayListOptions()
-      const chosen = displays.find(d => d.id === patch.stickDisplayId)
+      // Twin monitors can share one display id (X11 hashes the EDID), so the id
+      // alone may match several entries and `find` would persist the first
+      // twin's geometry while the user clicked another. The renderer/tray send
+      // the clicked entry's own geometry with the patch — trust that when the
+      // id is ambiguous.
+      const byGeometry = patch.stickDisplayWorkArea
+        ? displays.find(d =>
+          d.workArea.x === patch.stickDisplayWorkArea!.x &&
+          d.workArea.y === patch.stickDisplayWorkArea!.y &&
+          d.workArea.width === patch.stickDisplayWorkArea!.width &&
+          d.workArea.height === patch.stickDisplayWorkArea!.height)
+        : undefined
+      const chosen = byGeometry ?? displays.find(d => d.id === patch.stickDisplayId)
       if (chosen) {
         // IMPORTANT: persist workArea (not bounds) — geometry.ts Tier-2 fuzzy match
         // compares d.workArea against savedWorkArea. Using bounds (which includes the

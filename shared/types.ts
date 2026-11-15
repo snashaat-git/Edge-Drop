@@ -137,6 +137,13 @@ export type StickPosition = 'left' | 'right' | 'top'
 export interface DisplayInfo {
   id: number
   bounds: { x: number; y: number; width: number; height: number }
+  /**
+   * Work area and scale factor are what identify a display for the shelf.
+   * `id` is not unique across platforms (twin monitors can report the same
+   * id), so the picker round-trips these back with the selection.
+   */
+  workArea?: { x: number; y: number; width: number; height: number }
+  scaleFactor?: number
   isPrimary: boolean
   isCurrent?: boolean
   label: string

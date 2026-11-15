@@ -1211,7 +1211,18 @@ export function Settings({
                         className={`pill display-pill ${isActive ? 'active' : ''}`}
                         onClick={() => {
                           playButtonClickSound()
-                          patch({ stickDisplayId: d.id })
+                          // Send the clicked entry's own geometry: twin monitors
+                          // can share one Electron display id, so the id alone
+                          // cannot tell the main process which panel was picked.
+                          void patch({
+                            stickDisplayId: d.id,
+                            ...(d.workArea ? { stickDisplayWorkArea: { ...d.workArea } } : {}),
+                            ...(d.scaleFactor !== undefined ? { stickDisplayScaleFactor: d.scaleFactor } : {})
+                          }).then(() => {
+                            // The list snapshot predates the switch; refetch so
+                            // the active pill follows the shelf to the new display.
+                            window.edge.getDisplays().then(setDisplays).catch(() => {})
+                          })
                           useStore.getState().notifyPositionChanged()
                         }}
                       >
