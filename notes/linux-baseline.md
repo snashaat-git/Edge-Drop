@@ -295,6 +295,28 @@ Same settings under the old build put the window at `x=0` regardless. Reading `w
 in the live renderer shows exactly one `isCurrent: true` entry. `tests/geometry.test.ts`
 ("duplicate display ids") pins the resolver against this captured topology.
 
+### Panel width — a share of the screen
+
+The blade used to be a fixed 270 CSS px, which on a 4K panel is a sliver. It is now
+`panelWidthRatio` of the stick display's work area (a third by default, 20–60% allowed by
+`normalizePanelWidthRatio`), persisted because main computes the window geometry before the
+renderer exists. `resolvePanelWidthCss()` (geometry.ts) divides the UI zoom out first, so the
+blade covers the same share of the *screen* at any zoom; 270 px stays the floor
+(`PANEL_WIDTH_MIN`), which is what a small/hot-plugged screen lands on.
+
+The window is `(blade + 114) × zoom` — 114px of transparent margin — and `(blade + 550) × zoom`
+while a preview flyout is open, so the flyout's own max width (526px) stays independent of the
+blade. Main measures the blade and pushes it as `window:layout` (CSS px), pulled once on mount
+via `window:get-layout` in case a push landed before the renderer subscribed; the renderer writes
+it to `--panel-width` and keeps the number in `appStore.panelWidth`, which replaced the
+hard-coded 270s in `useEdgeHover` (keep-open / start-close / flyout reach) and `PreviewFlyout`.
+The Settings row lives in Appearance → Typography and is only rendered for side docks: the top
+dock keeps its full-width bar design.
+
+Measured on the real desktop (3615 DIP screen, uiZoom 1.25): blade 963 CSS px, window
+1438×2062 at the primary's left edge — a third of the screen. Under Xvfb (1600×1000) the smoke
+cases now expect 647px at 100% and 675px at 125% (was 384 / 480).
+
 ## Known gaps to close (see the plan)
 
 - Launch-at-login is covered on Linux by `electron/main/autostartLinux.ts`; the remaining Windows-only paths

@@ -146,6 +146,12 @@ export interface InvokeMap {
 
   /** Get the list of connected displays. */
   'displays:list': { args: []; result: import('./types').DisplayInfo[] }
+
+  /**
+   * Blade metrics for the resolved stick display, in CSS pixels. Pulled once on
+   * mount so the renderer never starts from a stale width if it missed a push.
+   */
+  'window:get-layout': { args: []; result: import('./types').PanelLayout }
 }
 
 /* ------------------------------------------------------------------ */
@@ -201,6 +207,12 @@ export interface EventMap {
     /** A drag from another app is in progress anywhere on screen (see electron/main/externalDrag.ts). */
     drag?: boolean
   }]
+  /**
+   * Blade metrics for the resolved stick display, in CSS pixels (the UI zoom is
+   * already divided out). Pushed whenever the geometry settles — on load, after
+   * a display/position change and after a settings update.
+   */
+  'window:layout': [layout: import('./types').PanelLayout]
 }
 
 /* ------------------------------------------------------------------ */

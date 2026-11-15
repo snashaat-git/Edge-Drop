@@ -20,12 +20,12 @@ import { runtime } from './config'
 import { PATHS } from '../store/paths'
 import { TRANSLATIONS, en } from '../../src/i18n/translations'
 import { mainT, resolveLang } from './i18n'
-import { computeStickBounds, resolveStickDisplay, type DisplayInfo } from './geometry'
+import { computeStickBounds, PANEL_WIDTH_MIN, resolvePanelWidthCss, resolveStickDisplay, type DisplayInfo } from './geometry'
 import { isSafeExternalUrl } from './externalUrl'
 import { WorkAreaCache } from './workAreaCache'
 import { probeSeamAware, isNearProximity, type SeamTickState } from './stickProbe'
 import { loadSettings, saveSettings } from '../store/settings'
-import { normalizeUiZoom, UI_ZOOM_MIN } from '../../shared/types'
+import { normalizeUiZoom, UI_ZOOM_MIN, type PanelLayout } from '../../shared/types'
 import { isFullscreenAppActive, registerFullscreenActiveListener } from './fullscreen'
 import { noteUiMotion } from './thumbnailCache'
 import { isExternalDragActive } from './externalDrag'
@@ -118,9 +118,54 @@ export function registerClipboardUpdateListener(fn: () => void): void {
 
 const WM_CLIPBOARDUPDATE = 0x031D
 
+/**
+ * Legacy default window width at zoom 1: a 270px blade plus the 114px
+ * transparent margin beside it. Kept because the UI-zoom code and the tests
+ * reason in these units; the live width now follows `panelWidthRatio`.
+ */
 export const PANEL_WIDTH = 384
+/** Transparent margin beside the blade (shadow / breathing room). */
+const PANEL_GUTTER = PANEL_WIDTH - PANEL_WIDTH_MIN
+/** Extra window width while the preview flyout is open. */
+const PREVIEW_EXTRA = 820 - PANEL_WIDTH_MIN
+/** Widest the top dock gets; matches `--panel-width` cap in panel.css. */
+const TOP_DOCK_MAX = 1080
 /** Visual width of the blade when collapsed (only used by the renderer). */
 export const COLLAPSED_WIDTH = 0
+
+/** Everything the renderer needs to lay the blade out, in CSS pixels. */
+
+let currentLayout: PanelLayout | null = null
+
+/** Current blade metrics (computes them if nothing has been laid out yet). */
+export function getPanelLayout(): PanelLayout {
+  if (!currentLayout) {
+    const settings = loadSettings()
+    const zoom = normalizeUiZoom(settings.uiZoom)
+    const { infos } = snapshotDisplays()
+    currentLayout = computePanelLayout(settings, resolveCurrentStickDisplay(infos), zoom)
+  }
+  return currentLayout
+}
+
+/** Blade width for the resolved display — the top dock keeps its full-width design. */
+function computePanelLayout(
+  settings: ReturnType<typeof loadSettings>,
+  display: DisplayInfo,
+  zoom: number
+): PanelLayout {
+  const wa = display.workArea
+  const panelWidth = settings.stickPosition === 'top'
+    ? Math.min(Math.max(PANEL_WIDTH_MIN, Math.round(wa.width / zoom) - 60), TOP_DOCK_MAX)
+    : resolvePanelWidthCss(wa, zoom, settings.panelWidthRatio)
+  return { panelWidth, displayWidth: wa.width / zoom, displayHeight: wa.height / zoom }
+}
+
+/** Push the blade metrics to the renderer (CSS pixels, zoom already divided out). */
+function sendLayout(): void {
+  if (!currentLayout) return
+  sendToMainWindow('window:layout', currentLayout)
+}
 
 let mainWindow: BrowserWindow | null = null
 let interactive = false
@@ -730,17 +775,29 @@ export function stopCursorPoll(): void {
 function getStickGeometry(): { x: number; y: number; width: number; height: number } {
   let settings = loadSettings()
   const primaryDisplay = screen.getPrimaryDisplay()
-  const allDisplays = screen.getAllDisplays().map(d => ({
-    id: d.id,
-    workArea: { ...d.workArea },
-    scaleFactor: d.scaleFactor,
-    isPrimary: d.id === primaryDisplay.id
-  }))
+  const { infos: allDisplays } = snapshotDisplays()
+  const zoom = normalizeUiZoom(settings.uiZoom)
+  const currentBounds = getMainWindow()?.getBounds()
 
-  // The window is the panel's CSS width times the zoom factor: the renderer lays
-  // out in CSS pixels, and Chromium divides the viewport by the zoom factor, so
-  // widening by the same amount keeps the panel's own geometry unchanged.
-  const currentWindowWidth = Math.round((previewActive ? 820 : PANEL_WIDTH) * normalizeUiZoom(settings.uiZoom))
+  // Resolve the display before the width: the blade is a share of THAT
+  // screen, so its width is only knowable once the screen is known.
+  const targetDisplay = resolveStickDisplay({
+    displays: allDisplays,
+    displayId: settings.stickDisplayId,
+    savedWorkArea: settings.stickDisplayWorkArea,
+    savedScaleFactor: settings.stickDisplayScaleFactor,
+    currentBounds,
+    allowNearest: true
+  })
+  const layout = computePanelLayout(settings, targetDisplay, zoom)
+  currentLayout = layout
+
+  // The window is the blade plus its transparent margin, times the zoom: the
+  // renderer lays out in CSS pixels and Chromium divides the viewport by the
+  // zoom factor, so widening by the same amount keeps the blade's own geometry.
+  const currentWindowWidth = Math.round(
+    (previewActive ? layout.panelWidth + PREVIEW_EXTRA : layout.panelWidth + PANEL_GUTTER) * zoom
+  )
 
   const result = computeStickBounds({
     position: settings.stickPosition,
@@ -750,7 +807,7 @@ function getStickGeometry(): { x: number; y: number; width: number; height: numb
     savedScaleFactor: settings.stickDisplayScaleFactor,
     windowWidth: currentWindowWidth,
     horizontalOffset: settings.horizontalOffset,
-    currentBounds: getMainWindow()?.getBounds(),
+    currentBounds,
     previewActive
   })
 
@@ -838,6 +895,9 @@ function getStickGeometry(): { x: number; y: number; width: number; height: numb
   // origin (the "hover secondary does nothing, hover primary opens it on
   // secondary" report).
   workAreaCache.refresh(resolved.id)
+  // The renderer sizes the blade from these metrics; push them right after the
+  // geometry settles so the CSS variable and the window agree.
+  sendLayout()
   return { x: result.x, y: result.y, width: result.width, height: result.height }
 }
 
@@ -856,7 +916,7 @@ export function createWindow(): BrowserWindow {
     maximizable: false,
     // The narrowest the window ever gets is a shelf at the minimum UI zoom; a
     // fixed 320 would clamp the 80% case and leave the panel inset from its edge.
-    minWidth: Math.round(PANEL_WIDTH * UI_ZOOM_MIN),
+    minWidth: Math.round((PANEL_WIDTH_MIN + PANEL_GUTTER) * UI_ZOOM_MIN),
     minHeight: 240,
     movable: false,
     resizable: false,
@@ -1001,7 +1061,12 @@ export function createWindow(): BrowserWindow {
   }
 
   // Zoom survives reloads only if it is re-applied to the new document.
-  mainWindow.webContents.on('did-finish-load', () => applyUiZoom())
+  mainWindow.webContents.on('did-finish-load', () => {
+    applyUiZoom()
+    // A fresh document starts from the stylesheet's default width; hand it the
+    // blade metrics computed for the current screen before it paints.
+    sendLayout()
+  })
 
   mainWindow.once('ready-to-show', () => {
     if (!mainWindow) return

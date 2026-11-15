@@ -42,6 +42,37 @@ export function normalizeUiZoom(value: unknown): number {
   return Math.min(UI_ZOOM_MAX, Math.max(UI_ZOOM_MIN, Number(snapped.toFixed(2))))
 }
 
+/**
+ * Shelf width, as a fraction of the stick display's work area.
+ *
+ * The blade used to be a fixed 270 CSS px; on a 4K screen that is a sliver, so
+ * the width is now a share of the screen (a third by default). The value is a
+ * persisted setting because main computes the window geometry before the
+ * renderer exists — it has to know the width at window creation.
+ */
+export const PANEL_WIDTH_RATIO_MIN = 0.2
+export const PANEL_WIDTH_RATIO_MAX = 0.6
+export const PANEL_WIDTH_RATIO_DEFAULT = 1 / 3
+
+/** Clamp a stored ratio; anything invalid becomes a third of the screen. */
+export function normalizePanelWidthRatio(value: unknown): number {
+  const n = typeof value === 'number' && Number.isFinite(value) ? value : PANEL_WIDTH_RATIO_DEFAULT
+  return Math.min(PANEL_WIDTH_RATIO_MAX, Math.max(PANEL_WIDTH_RATIO_MIN, Number(n.toFixed(3))))
+}
+
+/**
+ * Blade metrics for the resolved stick display, in CSS pixels (the UI zoom is
+ * already divided out). Main computes them with the window geometry and pushes
+ * them to the renderer, which writes `--panel-width` from them.
+ */
+export interface PanelLayout {
+  /** Visible blade width. */
+  panelWidth: number
+  /** The stick display's work area, in CSS pixels. */
+  displayWidth: number
+  displayHeight: number
+}
+
 /** Update behavior mode. See Settings.updateMode. */
 export type UpdateMode = 'auto' | 'notify' | 'off'
 
@@ -184,6 +215,11 @@ export interface Settings {
   historyLimit: number
   /** Fraction of the screen height the panel occupies (0.4 - 1.0). */
   panelHeight: number
+  /**
+   * Shelf width as a fraction of the stick display's work area
+   * (PANEL_WIDTH_RATIO_MIN..MAX). Default: a third of the screen.
+   */
+  panelWidthRatio?: number
   /** When true, newly captured items are not recorded. */
   incognito: boolean
   /** Start minimized when the OS logs in. */
@@ -278,6 +314,7 @@ export const DEFAULT_SETTINGS: Settings = {
   movePastedToTop: true,
   historyLimit: 250,
   panelHeight: 0.5,
+  panelWidthRatio: PANEL_WIDTH_RATIO_DEFAULT,
   incognito: false,
   launchAtLogin: true,
   reduceMotion: false,

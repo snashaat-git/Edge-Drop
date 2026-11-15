@@ -1,4 +1,26 @@
+import { normalizePanelWidthRatio } from '../../shared/types'
+
 export type StickPosition = 'left' | 'right' | 'top'
+
+/** Narrowest the blade ever gets (the original design width), in CSS px. */
+export const PANEL_WIDTH_MIN = 270
+
+/**
+ * Blade width in CSS pixels for one display.
+ *
+ * A share of the screen (`panelWidthRatio`) rather than a fixed value, because
+ * a 270px shelf is a sliver on a 4K panel. CSS pixels divide the zoom out
+ * again: the blade should cover the same share of the *screen*, whatever the
+ * UI zoom is. Never narrower than the original design width.
+ */
+export function resolvePanelWidthCss(
+  workArea: { width: number },
+  zoom: number,
+  ratio: number | undefined
+): number {
+  const cssScreenWidth = workArea.width / zoom
+  return Math.max(PANEL_WIDTH_MIN, Math.round(cssScreenWidth * normalizePanelWidthRatio(ratio)))
+}
 
 export interface DisplayInfo {
   id: number

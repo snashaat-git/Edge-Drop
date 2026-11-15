@@ -156,6 +156,15 @@ interface AppState {
   edgeHintActive: boolean
   setEdgeHintActive: (active: boolean) => void
 
+  /**
+   * Visible blade width in CSS pixels, as measured by main for the resolved
+   * screen (a share of the display, `settings.panelWidthRatio`). The store
+   * writes it onto `--panel-width`, and the hover/close maths reads it, so no
+   * component hard-codes the shelf's width any more.
+   */
+  panelWidth: number
+  setPanelWidth: (width: number) => void
+
   /* hydration + sync */
   hydrate: () => Promise<void>
   manualCheckState: {
@@ -336,6 +345,17 @@ export const useStore = create<AppState>((set, get) => ({
   },
   edgeHintActive: false,
   setEdgeHintActive: (active) => set({ edgeHintActive: active }),
+  panelWidth: 270,
+  setPanelWidth: (width) => {
+    const next = Math.round(width)
+    if (!Number.isFinite(next) || next <= 0 || get().panelWidth === next) return
+    // One write for both halves: the CSS variable the blade and its flyouts
+    // read, and the number the hover/close maths compares against.
+    if (typeof document !== 'undefined') {
+      document.documentElement.style.setProperty('--panel-width', `${next}px`)
+    }
+    set({ panelWidth: next })
+  },
   styleFlyoutOpen: false,
   styleFlyoutAnchorRect: null,
   setStyleFlyoutOpen: (open, rect) => {

@@ -14,7 +14,7 @@ import { psHost, getSystemPowerShellPath, getWritableCwd } from './powershell'
 import { filterValidPaths, isExistingFilePath } from './pathValidation'
 import { type InvokeMap, type InvokeChannel, type SendMap, type SendChannel } from '../../shared/ipc'
 import { getStore, loadSettings, saveSettings, pushState, addFiles, getWatcher } from './state'
-import { resyncHover, sendToMainWindow, setInteractive, setHeartbeatPaused, setHotZoneWidth, repositionWindow, getDisplayListOptions, popUpAndRetract, setWindowFocusable, captureExternalForeground, traceFg, resolvePasteTarget, applyUiZoom } from './window'
+import { resyncHover, sendToMainWindow, setInteractive, setHeartbeatPaused, setHotZoneWidth, repositionWindow, getDisplayListOptions, getPanelLayout, popUpAndRetract, setWindowFocusable, captureExternalForeground, traceFg, resolvePasteTarget, applyUiZoom } from './window'
 import { registerGlobalHotkey } from './index'
 import { getOnboardingWindow } from './onboardingWindow'
 import { rebuildTrayMenu } from './tray'
@@ -818,7 +818,7 @@ export function registerIpc(): void {
       applyUiZoom()
       repositionWindow()
     }
-    if (patch.stickPosition !== undefined || patch.stickDisplayId !== undefined || patch.verticalOffset !== undefined || patch.horizontalOffset !== undefined) {
+    if (patch.stickPosition !== undefined || patch.stickDisplayId !== undefined || patch.verticalOffset !== undefined || patch.horizontalOffset !== undefined || patch.panelWidthRatio !== undefined) {
       repositionWindow()
       if (patch.stickPosition !== undefined || patch.stickDisplayId !== undefined) {
         popUpAndRetract(1500)
@@ -892,6 +892,10 @@ export function registerIpc(): void {
 
   handle('displays:list', () => {
     return getDisplayListOptions()
+  })
+
+  handle('window:get-layout', () => {
+    return getPanelLayout()
   })
 }
 

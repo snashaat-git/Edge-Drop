@@ -210,6 +210,7 @@ const api = {
   mergeItems: (sourceId: string, targetId: string) => invoke('item:merge', sourceId, targetId),
   splitItem: (req: import('../../shared/types').DragRequest) => invoke('item:split', req),
   getDisplays: () => invoke('displays:list'),
+  getLayout: () => invoke('window:get-layout'),
   updateSettings: (patch: Partial<InvokeResult<'settings:update'>>) =>
     invoke('settings:update', patch),
   refreshLaunchAtLogin: () => invoke('startup:refresh'),
@@ -236,6 +237,7 @@ const api = {
   },
   onInternalDrop: (cb: (pos: { x: number; y: number }) => void) => on('item:internal-drop', cb),
   onCursorEdge: (cb: (data: EventArgs<'window:cursor-edge'>[0]) => void) => on('window:cursor-edge', cb),
+  onLayout: (cb: (layout: EventArgs<'window:layout'>[0]) => void) => on('window:layout', cb),
   onToast: (cb: (toast: { id: string; message: string; tone: 'info' | 'error' }) => void) => on('ui:toast', cb),
   onCopyFlare: (cb: () => void) => on('ui:copy-flare', cb),
   onTutorialStep: (cb: (step: number) => void) => on('tutorial:step', cb),

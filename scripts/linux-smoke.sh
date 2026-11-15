@@ -25,8 +25,9 @@
 #          the panel on its own
 #   pin      clicking the pin button then leaving must keep the shelf up; clicking
 #          it again must let the same leave retract it (two frames, compared)
-#   zoom     uiZoom 1.25 in the store: the window must be ~480-520px wide and the
-#          app must log that it applied the factor
+#   zoom     uiZoom 1.25 in the store: the window must be ~660-700px wide on this
+#          1600px screen (blade = a third of the screen, widened by the zoom) and
+#          the app must log that it applied the factor
 #   zoom100  the same measurement at 100%, so the 125% numbers are a comparison
 #          and not a guess
 #
@@ -139,7 +140,9 @@ APP=\$!
 # Let the app settle: first paint, store load, watcher seed.
 sleep 16
 if [ "$CASE" = "zoom" ] || [ "$CASE" = "zoom100" ]; then
-  # The window is sized at creation from PANEL_WIDTH × zoom; the panel itself is
+  # The window is sized at creation from (blade + gutter) × zoom, where the blade
+  # is a share of THIS Xvfb screen (1600 × panelWidthRatio, a third by default);
+  # the panel itself is
   # closed here, so this is the geometry main chose, not an animation frame.
   # The onboarding tour is a second window with the same title, so take the one
   # anchored at the top-left corner: that is the edge panel.
@@ -404,15 +407,17 @@ if [ "$CASE" = "zoom" ] || [ "$CASE" = "zoom100" ]; then
       echo "RESULT: FAIL — 125% was in the store but the app never applied it"
       exit 1
     fi
-    if [ "$W" -lt 470 ] || [ "$W" -gt 560 ]; then
-      echo "RESULT: FAIL — a 125% shelf must be roughly 480-520px wide, got $W"
+    # 1600 screen / 1.25 zoom = 1280 CSS px; a third = 427; +114 gutter = 541 → 676
+    if [ "$W" -lt 650 ] || [ "$W" -gt 705 ]; then
+      echo "RESULT: FAIL — a 125% shelf on this screen must be roughly 660-700px wide, got $W"
       exit 1
     fi
     echo "RESULT: PASS — 125% zoom applied, window widened to $W"
     exit 0
   fi
-  if [ "$W" -lt 370 ] || [ "$W" -gt 430 ]; then
-    echo "RESULT: FAIL — the 100% shelf should be roughly 384-416px wide, got $W"
+  # 1600 / 3 = 533 CSS px of blade + 114 gutter = 647
+  if [ "$W" -lt 625 ] || [ "$W" -gt 675 ]; then
+    echo "RESULT: FAIL — the 100% shelf on this screen should be roughly 630-670px wide, got $W"
     exit 1
   fi
   echo "RESULT: PASS — 100% baseline window is $W wide (the 125% case must be wider)"

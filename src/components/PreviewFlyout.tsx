@@ -29,16 +29,20 @@ const BATCH_EXIT_MS = 140
 
 /** Normal flyout width (every kind but large images). */
 const FLYOUT_W = 440
-/** Blade width (var(--panel-width)) and the flyout's gap to it. */
-const PANEL_W = 270
+/** Fallback blade width before main has pushed its measurements (CSS px). */
+const PANEL_W_FALLBACK = 270
 const FLYOUT_GAP = 12
+/** Live blade width — it is a share of the screen, not a fixed 270 any more. */
+function panelW(): number {
+  return useStore.getState().panelWidth || PANEL_W_FALLBACK
+}
 /**
- * Side docks: the window is this wide while previewing (main/window.ts,
- * getStickGeometry), so a flyout may reach this far from the screen edge
- * with a gap to spare.
+ * Side docks: while previewing the window is blade + this much (see
+ * main/window.ts, PREVIEW_EXTRA), so a flyout may reach this far past the
+ * blade with a gap to spare. Independent of the blade's own width.
  */
-const PREVIEW_WINDOW_W = 820
-const SIDE_FLYOUT_MAX_W = PREVIEW_WINDOW_W - PANEL_W - 2 * FLYOUT_GAP
+const PREVIEW_EXTRA = 820 - 270
+const SIDE_FLYOUT_MAX_W = PREVIEW_EXTRA - 2 * FLYOUT_GAP
 /** Top dock: widest an image flyout gets (the dock itself is up to 1080). */
 const TOP_FLYOUT_MAX_W = 760
 /** Header (14 + 30) and body padding (14 + 20) around an image. */
@@ -178,7 +182,7 @@ export function PreviewFlyout({ isRight }: { isRight: boolean }) {
         })
       } else {
         const top = panelTop + (panelH - h) / 2
-        useStore.getState().setPreviewFlyoutRect({ top, bottom: top + h, reach: PANEL_W + FLYOUT_GAP + flyoutWidth })
+        useStore.getState().setPreviewFlyoutRect({ top, bottom: top + h, reach: panelW() + FLYOUT_GAP + flyoutWidth })
       }
     }
 

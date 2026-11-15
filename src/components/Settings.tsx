@@ -1401,7 +1401,24 @@ export function Settings({
               (v) => Math.abs((settings.uiZoom ?? 1.0) - v) < 0.001,
               (v) => patch({ uiZoom: v })
             )
-          }
+          },
+          // Side docks only: the top dock is a full-width bar with its own
+          // design width, so a share-of-the-screen slider would do nothing there.
+          ...(!isHorizontal ? [{
+            id: 'panel-width',
+            title: t('appearance.panelWidthTitle') || 'Panel width',
+            desc: t('appearance.panelWidthDesc') || 'How much of the screen the shelf covers, as a share of the display.',
+            below: pills(
+              [
+                { label: '25%', val: 0.25 },
+                { label: '33%', val: 1 / 3 },
+                { label: '40%', val: 0.4 },
+                { label: '50%', val: 0.5 }
+              ],
+              (v) => Math.abs((settings.panelWidthRatio ?? 1 / 3) - v) < 0.02,
+              (v) => patch({ panelWidthRatio: v })
+            )
+          } satisfies RowSpec] : [])
         ]
       } satisfies GroupSpec] : []),
       {

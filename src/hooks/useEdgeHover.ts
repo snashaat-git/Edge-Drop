@@ -32,18 +32,24 @@ import { DRAG_CATCH_DWELL_MS, edgeDragPull, inEdgeDragCatch, setEdgeDragPull, ty
 const TRIGGER_PX = 3    // leftmost px that count as "the edge"
 const DWELL_MS = 40      // cursor must linger this long to open (base; user delay adds on top)
 const GRACE_MS = 250     // close delay after leaving
-const PANEL_WIDE = 270   // blade is 270px (var(--panel-width))
+/** Fallback blade width before main has pushed its measurements (CSS px). */
+const PANEL_WIDE_FALLBACK = 270
+/** Blade width in CSS px for the current screen. Main measures it from the
+ *  display and the width setting; see appStore.panelWidth / window:layout. */
+function panelWide(): number {
+  return useStore.getState().panelWidth || PANEL_WIDE_FALLBACK
+}
+/** Gap + flyout + margin a preview reaches past the blade (740 - 270). */
+const FLYOUT_SPAN = 470
 /** Hysteresis thresholds for closing the panel.
- * KEEP_OPEN_PX: if cursor x is <= this, the panel stays open (clearly inside blade).
- * START_CLOSE_PX: if cursor x is > this, start the close timer (clearly outside).
- * Gap between the two prevents rapid cancel/schedule oscillation at the blade edge
- * when the cursor hovers just outside the visual boundary.
+ *  KEEP_OPEN_PX: if cursor x is <= this, the panel stays open (clearly inside blade).
+ *  START_CLOSE_PX: if cursor x is > this, start the close timer (clearly outside).
+ *  Gap between the two prevents rapid cancel/schedule oscillation at the blade edge
+ *  when the cursor hovers just outside the visual boundary.
  */
-const KEEP_OPEN_PX = PANEL_WIDE - 15  // 255 — clearly inside blade
-const START_CLOSE_PX = PANEL_WIDE + 20 // 290 — 20px buffer outside the visual boundary
+const keepOpenPx = () => panelWide() - 15   // clearly inside the blade
+const startClosePx = () => panelWide() + 20 // 20px buffer outside the visual boundary
 const BUFFER_PX = 30                 // 30px overshoot buffer across adjacent monitors
-const PREVIEW_WIDE = 740             // Extended width when preview flyout is active
-/** Keep-open margin past the flyout's far edge (740 = 270 + 12 + 440 + 18). */
 const PREVIEW_EDGE_MARGIN = 18
 
 /**
@@ -53,7 +59,8 @@ const PREVIEW_EDGE_MARGIN = 18
  */
 function flyoutWide(state: ReturnType<typeof useStore.getState>): number {
   const reach = state.previewItemId ? state.previewFlyoutRect?.reach : undefined
-  return reach ? Math.max(PREVIEW_WIDE, reach + PREVIEW_EDGE_MARGIN) : PREVIEW_WIDE
+  const base = panelWide() + FLYOUT_SPAN
+  return reach ? Math.max(base, reach + PREVIEW_EDGE_MARGIN) : base
 }
 
 /** Total dwell before a hover opens the shelf: base + the user's Open Delay setting. */
@@ -451,7 +458,7 @@ export function useEdgeHover(): void {
       if (x < -BUFFER_PX || y < 0) return true // unknown — be conservative, don't close
       const s = state.settings
       const hasFlyout = !!(state.previewItemId || state.styleFlyoutOpen || state.languageFlyoutOpen)
-      const currentPanelWide = hasFlyout ? flyoutWide(state) : PANEL_WIDE
+      const currentPanelWide = hasFlyout ? flyoutWide(state) : panelWide()
 
       if (s.stickPosition === 'top') {
         const dispW = displaySize.current.width
@@ -480,8 +487,8 @@ export function useEdgeHover(): void {
       if (!insideX) return false
 
       const inPreviewCol = s.stickPosition === 'right'
-        ? x < window.innerWidth - KEEP_OPEN_PX
-        : x > KEEP_OPEN_PX
+        ? x < window.innerWidth - keepOpenPx()
+        : x > keepOpenPx()
 
       if (inPreviewCol && hasFlyout && state.previewFlyoutRect) {
         const FLYOUT_BUFFER = 24
@@ -579,8 +586,8 @@ export function useEdgeHover(): void {
         return
       }
       const hasFlyout = !!(state.previewItemId || state.styleFlyoutOpen || state.languageFlyoutOpen)
-      const currentKeepOpenPx = hasFlyout ? flyoutWide(state) - 15 : KEEP_OPEN_PX
-      const currentStartClosePx = hasFlyout ? flyoutWide(state) + 20 : START_CLOSE_PX
+      const currentKeepOpenPx = hasFlyout ? flyoutWide(state) - 15 : keepOpenPx()
+      const currentStartClosePx = hasFlyout ? flyoutWide(state) + 20 : startClosePx()
 
       switch (stickPosition) {
         case 'top': {
@@ -696,7 +703,7 @@ export function useEdgeHover(): void {
             edge.setInteractive(true)
           }
 
-          const inPreviewColumn = distFromRight > KEEP_OPEN_PX
+          const inPreviewColumn = distFromRight > keepOpenPx()
           let insideY = false
           if (inPreviewColumn && hasFlyout && state.previewFlyoutRect) {
             const FLYOUT_BUFFER = 24
@@ -758,7 +765,7 @@ export function useEdgeHover(): void {
             edge.setInteractive(true)
           }
 
-          const inPreviewColumn = data.x > KEEP_OPEN_PX
+          const inPreviewColumn = data.x > keepOpenPx()
           let insideY = false
           if (inPreviewColumn && hasFlyout && state.previewFlyoutRect) {
             const FLYOUT_BUFFER = 24

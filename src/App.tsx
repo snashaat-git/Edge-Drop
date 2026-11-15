@@ -206,6 +206,15 @@ export default function App() {
     void hydrate()
     const offItems = edge.onItems((items, meta) => setItems(items, meta))
     const offSettings = edge.onSettings((next) => setSettings(next))
+    // Blade metrics: pulled once (a push sent before this effect subscribed is
+    // lost) and then kept current by main on every geometry change.
+    const applyLayout = (layout: { panelWidth: number }) => {
+      if (layout && typeof layout.panelWidth === 'number') {
+        useStore.getState().setPanelWidth(layout.panelWidth)
+      }
+    }
+    const offLayout = edge.onLayout(applyLayout)
+    void edge.getLayout().then(applyLayout).catch(() => {})
     const offToast = edge.onToast((t) => pushToast(t))
     const offToggle = edge.onToggle((forceOpen) => {
       const next = forceOpen !== undefined ? forceOpen : !useStore.getState().open
@@ -279,6 +288,7 @@ export default function App() {
     return () => {
       offItems()
       offSettings()
+      offLayout()
       offToast()
       offToggle()
       offOpenSettings()

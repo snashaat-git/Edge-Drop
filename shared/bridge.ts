@@ -74,6 +74,8 @@ export interface EdgeApi {
   minimizeWindow: () => Promise<void>
   focusWindow: (focusable?: boolean) => Promise<void>
   getDisplays: () => Promise<import('./types').DisplayInfo[]>
+  /** Blade metrics for the current screen (CSS px), see PanelLayout. */
+  getLayout: () => Promise<import('./types').PanelLayout>
   setInternalDrag: (active: boolean) => void
   broadcastTutorialStep: (step: number) => void
 
@@ -95,6 +97,8 @@ export interface EdgeApi {
     /** A drag from another app is in progress anywhere on screen (see electron/main/externalDrag.ts). */
     drag?: boolean
   }) => void) => () => void
+  /** Blade metrics for the resolved screen; fired on load and when the geometry changes. */
+  onLayout: (cb: (layout: import('./types').PanelLayout) => void) => () => void
   onToast: (cb: (toast: { id: string; message: string; tone: 'info' | 'error'; params?: Record<string, string | number> }) => void) => () => void
   onCopyFlare: (cb: () => void) => () => void
   onTutorialStep: (cb: (step: number) => void) => () => void
