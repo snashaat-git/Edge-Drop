@@ -148,6 +148,35 @@
   transition: none;
 }
 
+/* Pinned-clips view toggle: the filter row's second view button, with the
+   number of pinned clips riding on its corner. */
+.pinned-view-btn {
+  position: relative;
+}
+
+.pinned-view-count {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  min-width: 13px;
+  height: 13px;
+  padding: 0 3px;
+  border-radius: 7px;
+  background: #ffffff;
+  color: #000000;
+  font-family: var(--font-mono, monospace);
+  font-size: 8px;
+  font-weight: 700;
+  line-height: 13px;
+  text-align: center;
+  pointer-events: none;
+}
+
+.pinned-view-btn.active .pinned-view-count {
+  background: #000000;
+  color: #ffffff;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .seg__thumb,
   .seg__ink {

@@ -317,6 +317,14 @@ Measured on the real desktop (3615 DIP screen, uiZoom 1.25): blade 963 CSS px, w
 1438×2062 at the primary's left edge — a third of the screen. Under Xvfb (1600×1000) the smoke
 cases now expect 647px at 100% and 675px at 125% (was 384 / 480).
 
+### Pinned clips view
+
+The PINNED accordion is easy to miss, so pinned clips also have a header toggle: a pin button in
+the filter row (`[Pinned] view: true/false` in the log) with a count badge. It sets
+`appStore.pinnedOnly`, and `ItemList` then renders the pinned section alone — expanded, no Recent
+section, no accordion to fold — or a "nothing pinned yet" state when nothing is pinned. It is
+session UI state (like the shelf pin), not a persisted preference.
+
 ## Known gaps to close (see the plan)
 
 - Launch-at-login is covered on Linux by `electron/main/autostartLinux.ts`; the remaining Windows-only paths

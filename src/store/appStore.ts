@@ -165,6 +165,10 @@ interface AppState {
   panelWidth: number
   setPanelWidth: (width: number) => void
 
+  /** Showing only the pinned clips (header pin-view toggle) instead of the whole history. */
+  pinnedOnly: boolean
+  setPinnedOnly: (value: boolean) => void
+
   /* hydration + sync */
   hydrate: () => Promise<void>
   manualCheckState: {
@@ -356,6 +360,8 @@ export const useStore = create<AppState>((set, get) => ({
     }
     set({ panelWidth: next })
   },
+  pinnedOnly: false,
+  setPinnedOnly: (value) => set({ pinnedOnly: value, emojiOpen: value ? false : get().emojiOpen }),
   styleFlyoutOpen: false,
   styleFlyoutAnchorRect: null,
   setStyleFlyoutOpen: (open, rect) => {

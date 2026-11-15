@@ -48,6 +48,11 @@ export function Header({ isHorizontal = false, itemCount, clearProps }: HeaderPr
 
   const pinned = useStore((s) => s.pinned)
   const setPinned = useStore((s) => s.setPinned)
+  // Pinned clips get their own view (and their own toggle) so they are always
+  // one click away instead of hidden behind a collapsed accordion.
+  const pinnedOnly = useStore((s) => s.pinnedOnly)
+  const setPinnedOnly = useStore((s) => s.setPinnedOnly)
+  const pinnedCount = useStore((s) => s.items.reduce((n, it) => (it.pinned ? n + 1 : n), 0))
 
   const typeFilter = useStore((s) => s.typeFilter)
   const setTypeFilter = useStore((s) => s.setTypeFilter)
@@ -144,6 +149,25 @@ export function Header({ isHorizontal = false, itemCount, clearProps }: HeaderPr
             }}
           >
             <EmojiSmileIcon width={14} height={14} />
+          </button>
+          {/* Pinned clips: a view of their own, next to the filters. */}
+          <button
+            type="button"
+            className={`emoji-mode-btn pinned-view-btn${pinnedOnly ? ' active' : ''}`}
+            aria-pressed={pinnedOnly}
+            aria-label={pinnedOnly ? t('item.hidePinnedView') : t('item.showPinnedView')}
+            title={pinnedOnly ? t('item.hidePinnedView') : t('item.showPinnedView')}
+            tabIndex={settingsOpen ? -1 : undefined}
+            onClick={() => {
+              playButtonClickSound()
+              const next = !pinnedOnly
+              // The smoke harness locates this control by this line alone.
+              console.log(`[Pinned] view: ${next}`)
+              setPinnedOnly(next)
+            }}
+          >
+            {pinnedOnly ? <PinFillIcon width={14} height={14} /> : <PinIcon width={14} height={14} />}
+            {pinnedCount > 0 && <span className="pinned-view-count">{pinnedCount}</span>}
           </button>
         </div>
         {isHorizontal ? (

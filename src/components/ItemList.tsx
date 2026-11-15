@@ -40,9 +40,11 @@ export function ItemList() {
   const { t } = useTranslation()
   const { pinned, recent } = useFilteredItems()
   const query = useStore((s) => s.query)
+  // Header pin toggle: show the pinned clips alone, always expanded.
+  const pinnedOnly = useStore((s) => s.pinnedOnly)
   const listRef = useRef<HTMLDivElement>(null)
 
-  const total = pinned.length + recent.length
+  const total = pinnedOnly ? pinned.length : pinned.length + recent.length
   
   const isDraggingAny = useStore((s) => !!s.dragActive || !!s.internalDragReq)
   const isDraggingCard = useStore((s) => !!s.internalDragReq)
@@ -67,7 +69,7 @@ export function ItemList() {
     return { all: true, text: true, image: true, file: true, link: true }
   })
 
-  const pinnedCollapsed = collapsedMap[typeFilter] ?? true
+  const pinnedCollapsed = pinnedOnly ? false : (collapsedMap[typeFilter] ?? true)
 
   const setPinnedCollapsed = (val: boolean) => {
     setCollapsedMap((prev) => {
@@ -485,7 +487,7 @@ export function ItemList() {
       added.disconnect()
       near.disconnect()
     }
-  }, [hasStack, isHorizontal])
+  }, [hasStack, isHorizontal, pinnedOnly])
 
   return (
     <div
@@ -497,7 +499,29 @@ export function ItemList() {
       onScroll={handleScroll}
     >
       {total === 0 ? (
-        <EmptyState filtered={query.trim().length > 0} />
+        pinnedOnly ? (
+          <div className="empty">
+            <div className="empty-text">
+              <div className="big">{t('item.pinnedEmpty')}</div>
+              <div className="hint">{t('item.pinnedEmptyHint')}</div>
+            </div>
+          </div>
+        ) : (
+          <EmptyState filtered={query.trim().length > 0} />
+        )
+      ) : pinnedOnly ? (
+        // Pinned view: no Recent section and no accordion to fold away.
+        <div ref={stackRef} className="list-stack">
+          <section className="pinned-section">
+            <div className={`pinned-accordion is-expanded ${isHorizontal ? 'horizontal' : ''}`}>
+              <div className="pinned-accordion-inner">
+                {pinned.map((it) => (
+                  <ClipboardItemCard key={it.id} item={it} />
+                ))}
+              </div>
+            </div>
+          </section>
+        </div>
       ) : (
         <div ref={stackRef} className="list-stack">
           {pinned.length > 0 && (
